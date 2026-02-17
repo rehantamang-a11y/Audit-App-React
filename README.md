@@ -1,70 +1,158 @@
-# Getting Started with Create React App
+# Bathroom Safety Audit App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A React-based form application for conducting bathroom safety audits. Auditors can inspect and document 8 key areas of bathroom safety, add photos, save drafts, and export reports as PDF.
 
-## Available Scripts
+## Getting Started
 
-In the project directory, you can run:
+```bash
+npm install
+npm start
+```
 
-### `npm start`
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Build for Production
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+```bash
+npm run build
+```
 
-### `npm test`
+## Project Structure
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```
+src/
+├── components/          # Reusable UI components
+│   ├── Header/          # App header with progress bar
+│   ├── MetaBar/         # Auditor name, date, location fields
+│   ├── Section/         # Collapsible section card + comments
+│   ├── PhotoUpload/     # Photo upload with preview & removal
+│   ├── UserProfile/     # Individual user profile card
+│   ├── Toast/           # Toast notification
+│   ├── ActionBar/       # Save Draft / Export PDF buttons
+│   └── fields/          # Reusable form field components
+│       ├── SelectField
+│       ├── TextField
+│       ├── TextAreaField
+│       ├── RadioGroup
+│       ├── CheckGroup
+│       ├── ConditionalField
+│       └── FieldGrid
+├── sections/            # Each audit section's form content
+│   ├── PhysicalInfrastructure.jsx
+│   ├── Accessories.jsx
+│   ├── WashroomFixtures.jsx
+│   ├── SharpEdgesPlumbing.jsx
+│   ├── UserProfiles.jsx
+│   ├── WashroomConfiguration.jsx
+│   ├── ElectricalLightingHeating.jsx
+│   └── AccessExit.jsx
+├── hooks/               # Custom React hooks
+│   ├── useFormData.js   # Form state management & draft persistence
+│   └── usePhotos.js     # Photo upload state management
+├── utils/
+│   └── storage.js       # localStorage helpers for draft save/load
+├── styles/
+│   └── variables.css    # CSS custom properties (design tokens)
+├── App.js               # Root component, section config, layout
+├── App.css              # Container & content layout styles
+├── index.js             # Entry point
+└── index.css            # Global styles, field styles, print styles
+```
 
-### `npm run build`
+---
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Improvements Roadmap
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### User Experience (UX) Improvements
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+1. **Form Validation & Completion Tracking**
+   - Show per-section completion percentage (not just "opened")
+   - Highlight required fields that are empty on export
+   - Add visual indicators (green check) for fully completed sections
 
-### `npm run eject`
+2. **Auto-Save**
+   - Automatically save the draft every 30-60 seconds instead of requiring manual save
+   - Show a "last saved at" timestamp
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+3. **Better PDF / Report Export**
+   - Use a proper PDF library (e.g., `react-pdf`, `jsPDF`, or `html2pdf.js`) instead of `window.print()`
+   - Include a cover page with audit metadata, summary scores, and date
+   - Generate a risk summary section automatically based on the selected values
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+4. **Risk Score Dashboard**
+   - Compute a safety risk score based on field selections (e.g., high-risk items, missing anti-skid mats)
+   - Show a visual summary dashboard at the top or as a final section
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+5. **Offline / PWA Support**
+   - Make the app installable as a Progressive Web App
+   - Full offline support using service workers so auditors can use it in the field without internet
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+6. **Multi-Audit Management**
+   - Allow saving and managing multiple audits (list of past audits)
+   - Each audit linked to a specific property/address
+   - Export history and comparison between audits
 
-## Learn More
+7. **Photo Annotations**
+   - Allow auditors to draw on uploaded photos to circle problem areas
+   - Add captions/labels to each photo
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+8. **Dark Mode**
+   - Add a dark mode toggle for low-light environments
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+9. **Accessibility**
+   - Add proper ARIA labels to all form controls
+   - Ensure keyboard navigation works for all interactive elements
+   - Screen reader compatibility
 
-### Code Splitting
+10. **Localization / Multi-Language**
+    - Support Hindi, regional languages, or other languages for field auditors
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Code & Maintenance Improvements
 
-### Analyzing the Bundle Size
+1. **TypeScript Migration**
+   - Add TypeScript for type safety across all components, hooks, and data structures
+   - Define interfaces for form data, section config, user profiles, etc.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+2. **State Management**
+   - Move to a context-based or reducer-based state management (React Context + useReducer or Zustand)
+   - Currently the form state is passed through many prop levels — a global store would simplify this
 
-### Making a Progressive Web App
+3. **Data-Driven Section Config**
+   - Move all field definitions (options, labels, keys) into a JSON/config file
+   - Each section component could be a generic renderer instead of hand-coded JSX
+   - This would make it easy to add/remove/reorder audit fields without touching components
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+4. **Testing**
+   - Add unit tests for hooks (`useFormData`, `usePhotos`) with React Testing Library
+   - Add integration tests for form fill, save draft, restore draft flow
+   - Add snapshot tests for section components
 
-### Advanced Configuration
+5. **Form Library Integration**
+   - Consider using a form library like `react-hook-form` or `formik` for:
+     - Built-in validation
+     - Better performance (fewer re-renders)
+     - Easier error handling
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+6. **Backend Integration**
+   - Connect to a backend API (Node/Express, Firebase, Supabase) to:
+     - Store audits in a database
+     - Upload photos to cloud storage (S3, Cloudinary)
+     - Enable multi-device sync
+   - Add user authentication for auditor accounts
 
-### Deployment
+7. **Component Library / Design System**
+   - Extract the field components into a shared design system
+   - Use CSS Modules or styled-components for scoped styles (avoiding global CSS conflicts)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+8. **Performance**
+   - Memoize section components with `React.memo` to prevent unnecessary re-renders
+   - Lazy load section components that aren't yet expanded
+   - Compress uploaded photos before storing in state (they are currently stored as full base64)
 
-### `npm run build` fails to minify
+9. **Error Boundaries**
+   - Add React error boundaries around sections so one section crashing doesn't break the whole app
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+10. **CI/CD Pipeline**
+    - Set up GitHub Actions for linting, testing, and deployment
+    - Add ESLint + Prettier for code consistency
+    - Auto-deploy to Vercel/Netlify on push

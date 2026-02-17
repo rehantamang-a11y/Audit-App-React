@@ -1,0 +1,18 @@
+const STORAGE_KEY = 'bathroomAuditDraft';
+
+export function saveDraft(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+export function loadDraft() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearDraft() {
+  localStorage.removeItem(STORAGE_KEY);
+}
