@@ -132,4 +132,22 @@ Wrapped `<App />` in `<FormProvider>` and `<PhotoProvider>` at the root. Both co
 
 ---
 
+## [2026-02-19] — GitHub Pages deploy setup
+
+**Agent:** Git Agent / Docs Agent
+**Files changed:** `package.json`, `package-lock.json`
+**What changed:** Added `gh-pages` as a dev dependency and configured the project for GitHub Pages deployment.
+**Why:** To make the app publicly accessible for real-world testing by field employees without requiring a local development environment.
+
+**Changes made:**
+- Installed `gh-pages@6.3.0` as a dev dependency (`npm install gh-pages --save-dev`)
+- Added `"homepage": "https://rehantamang-a11y.github.io/Audit-App-React"` to `package.json` — required by Create React App to set the correct asset base path for the subdirectory deployment
+- Added `"predeploy": "npm run build"` script — automatically runs a production build before every deploy
+- Added `"deploy": "gh-pages -d build"` script — publishes the `build/` folder to the `gh-pages` branch on origin
+
+**Deploy command:** `npm run deploy`
+**Live URL:** https://rehantamang-a11y.github.io/Audit-App-React
+
+---
+
 *Future entries will be added here by the Docs Agent after each completed session.*
