@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/Audit-App-React/static/css/main.4a962fe8.css",
+    "main.js": "/Audit-App-React/static/js/main.1d0b04e5.js",
+    "index.html": "/Audit-App-React/index.html",
+    "main.4a962fe8.css.map": "/Audit-App-React/static/css/main.4a962fe8.css.map",
+    "main.1d0b04e5.js.map": "/Audit-App-React/static/js/main.1d0b04e5.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.4a962fe8.css",
+    "static/js/main.1d0b04e5.js"
+  ]
+}
