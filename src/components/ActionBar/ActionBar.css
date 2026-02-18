@@ -1,10 +1,16 @@
 .actions {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   padding: 18px 20px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.actions-row {
+  display: flex;
+  gap: 12px;
 }
 
 .btn {
@@ -41,9 +47,25 @@
   border-color: var(--brand);
 }
 
+.btn-new-audit {
+  width: 100%;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border);
+  font-size: 13px;
+}
+
+.btn-new-audit:hover {
+  background: var(--bg);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
 @media (max-width: 560px) {
   .actions {
     border-radius: 0;
+  }
+  .actions-row {
     flex-direction: column;
   }
 }

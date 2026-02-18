@@ -1,12 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Header from './components/Header/Header';
 import MetaBar from './components/MetaBar/MetaBar';
 import Section from './components/Section/Section';
 import ActionBar from './components/ActionBar/ActionBar';
 import Toast from './components/Toast/Toast';
-import { useFormData } from './hooks/useFormData';
-import { usePhotos } from './hooks/usePhotos';
-import { clearDraft } from './utils/storage';
+import { useFormContext } from './context/FormContext';
+import { usePhotoContext } from './context/PhotoContext';
 
 import PhysicalInfrastructure from './sections/PhysicalInfrastructure';
 import Accessories from './sections/Accessories';
@@ -31,10 +30,17 @@ const SECTIONS = [
 ];
 
 export default function App() {
-  const { formData, updateMeta, updateField, getField, handleSaveDraft, hasDraft } = useFormData();
-  const { addPhotos, removePhoto, getPhotos } = usePhotos();
+  const { formData, updateMeta, updateField, getField, handleSaveDraft, resetForm, hasDraft } = useFormContext();
+  const { addPhotos, removePhoto, getPhotos, photoError, clearPhotoError, resetPhotos } = usePhotoContext();
   const [expandedSections, setExpandedSections] = useState(new Set());
   const [toast, setToast] = useState(hasDraft ? 'Draft restored' : '');
+
+  useEffect(() => {
+    if (photoError) {
+      setToast(photoError);
+      clearPhotoError();
+    }
+  }, [photoError, clearPhotoError]);
 
   const toggleSection = useCallback((id) => {
     setExpandedSections(prev => {
@@ -54,8 +60,19 @@ export default function App() {
     setExpandedSections(new Set(SECTIONS.map(s => s.id)));
     setTimeout(() => {
       window.print();
-      clearDraft();
     }, 200);
+  };
+
+  const hasActiveData =
+    Object.keys(formData.fields).length > 0 ||
+    !!formData.meta.auditor ||
+    !!formData.meta.location;
+
+  const onNewAudit = () => {
+    if (!window.confirm('Start a new audit? This will clear all current form data and photos.')) return;
+    resetForm();
+    resetPhotos();
+    setExpandedSections(new Set());
   };
 
   return (
@@ -85,7 +102,7 @@ export default function App() {
         ))}
       </div>
 
-      <ActionBar onSaveDraft={onSaveDraft} onExportPdf={onExportPdf} />
+      <ActionBar onSaveDraft={onSaveDraft} onExportPdf={onExportPdf} onNewAudit={onNewAudit} hasActiveData={hasActiveData} />
       <Toast message={toast} onDone={() => setToast('')} />
     </div>
   );

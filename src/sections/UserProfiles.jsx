@@ -1,18 +1,28 @@
-import React, { useState } from 'react';
+import React from 'react';
 import UserProfile from '../components/UserProfile/UserProfile';
 import SectionComments from '../components/Section/SectionComments';
 
 export default function UserProfiles({ getField, updateField }) {
-  const [userIds, setUserIds] = useState([1]);
-  const [nextId, setNextId] = useState(2);
+  const rawIds = getField('5-userIds');
+  let userIds;
+  try {
+    userIds = rawIds ? JSON.parse(rawIds) : [1];
+  } catch {
+    userIds = [1];
+  }
+
+  const rawNext = getField('5-nextId');
+  const parsedNext = parseInt(rawNext, 10);
+  const nextId = Number.isNaN(parsedNext) ? 2 : parsedNext;
 
   const addUser = () => {
-    setUserIds(prev => [...prev, nextId]);
-    setNextId(prev => prev + 1);
+    const newUserIds = [...userIds, nextId];
+    updateField('5-userIds', JSON.stringify(newUserIds));
+    updateField('5-nextId', String(nextId + 1));
   };
 
   const removeUser = (uid) => {
-    setUserIds(prev => prev.filter(id => id !== uid));
+    updateField('5-userIds', JSON.stringify(userIds.filter(id => id !== uid)));
   };
 
   return (
