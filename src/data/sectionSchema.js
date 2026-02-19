@@ -693,6 +693,49 @@ export function getAllFieldKeys(sectionNum) {
   return keys;
 }
 
+/** Get required field keys for a section, handling Section 5 dynamic users */
+export function getDynamicRequiredKeys(sectionNum, formFields) {
+  if (sectionNum !== 5) return getRequiredFields(sectionNum);
+
+  let userIds;
+  try {
+    userIds = JSON.parse(formFields['5-userIds'] || '[]');
+  } catch {
+    userIds = [1];
+  }
+  if (userIds.length === 0) userIds = [1];
+
+  const requiredTemplates = [];
+  function extractRequired(fields) {
+    for (const field of fields) {
+      if (field.required && field.key) requiredTemplates.push(field.key);
+      if (field.fields) extractRequired(field.fields);
+    }
+  }
+  if (sectionSchema[5].userFields) extractRequired(sectionSchema[5].userFields);
+
+  const result = [];
+  for (const id of userIds) {
+    const prefix = `u${id}`;
+    for (const template of requiredTemplates) {
+      result.push(template.replace(/\{prefix\}/g, prefix));
+    }
+  }
+  return result;
+}
+
+/** Compute required-field completion for a section */
+export function computeSectionCompletion(sectionNum, formFields) {
+  const keys = getDynamicRequiredKeys(sectionNum, formFields);
+  const total = keys.length;
+  if (total === 0) return { filled: 0, total: 0, complete: true };
+  const filled = keys.filter(k => {
+    const val = formFields[k];
+    return typeof val === 'string' && val.trim() !== '';
+  }).length;
+  return { filled, total, complete: filled === total };
+}
+
 /** Get section comment placeholder */
 export const commentPlaceholders = {
   1: 'Note observations, defects, or recommendations for this section...',
