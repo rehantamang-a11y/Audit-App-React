@@ -38,6 +38,9 @@ export default function App() {
   const [toast, setToast] = useState(hasDraft ? 'Draft restored' : '');
   const [isExporting, setIsExporting] = useState(false);
   const [highlightErrors, setHighlightErrors] = useState(false);
+  const [erroredSections, setErroredSections] = useState(new Set());
+  const [validationBanner, setValidationBanner] = useState(null);
+  const [confirmNewAuditBanner, setConfirmNewAuditBanner] = useState(false);
 
   const sectionCompletions = useMemo(() => {
     const map = {};
@@ -49,9 +52,15 @@ export default function App() {
 
   const completedCount = Object.values(sectionCompletions).filter(c => c.complete).length;
 
+  // Clear error highlighting only once all previously-errored sections are fixed
   useEffect(() => {
-    setHighlightErrors(false);
-  }, [formData.fields]);
+    if (!highlightErrors || erroredSections.size === 0) return;
+    const allFixed = [...erroredSections].every(num => sectionCompletions[num]?.complete);
+    if (allFixed) {
+      setHighlightErrors(false);
+      setErroredSections(new Set());
+    }
+  }, [sectionCompletions, highlightErrors, erroredSections]);
 
   useEffect(() => {
     if (photoError) {
@@ -74,23 +83,7 @@ export default function App() {
     setToast('Draft saved');
   };
 
-  const onExportPdf = () => {
-    if (isExporting) return;
-
-    const incompleteSections = SECTIONS.filter(s => !sectionCompletions[s.number].complete);
-    const missingMeta = !formData.meta.auditor.trim() || !formData.meta.location.trim();
-
-    if (incompleteSections.length > 0 || missingMeta) {
-      const lines = ['Required fields are missing:'];
-      if (missingMeta) lines.push('  • Auditor / Location (top bar)');
-      incompleteSections.forEach(s => lines.push(`  • Section ${s.number}: ${s.title}`));
-      lines.push('', 'Export anyway?');
-      if (!window.confirm(lines.join('\n'))) {
-        setHighlightErrors(true);
-        return;
-      }
-    }
-
+  const doExport = () => {
     setIsExporting(true);
     setToast('Generating PDF…');
     // Small timeout lets the toast render before the synchronous PDF work blocks the thread
@@ -106,16 +99,58 @@ export default function App() {
     }, 80);
   };
 
+  const onExportPdf = () => {
+    if (isExporting) return;
+
+    const incompleteSections = SECTIONS.filter(s => !sectionCompletions[s.number].complete);
+    const missingMeta = !formData.meta.auditor.trim() || !formData.meta.location.trim();
+
+    if (incompleteSections.length > 0 || missingMeta) {
+      setErroredSections(new Set(incompleteSections.map(s => s.number)));
+      setValidationBanner({ incompleteSections, missingMeta });
+      return;
+    }
+
+    doExport();
+  };
+
+  const onFixFirst = () => {
+    setHighlightErrors(true);
+    // Expand the first incomplete section so the auditor can see what needs fixing
+    if (validationBanner?.incompleteSections?.length > 0) {
+      const firstId = validationBanner.incompleteSections[0].id;
+      setExpandedSections(prev => { const next = new Set(prev); next.add(firstId); return next; });
+    }
+    setValidationBanner(null);
+  };
+
+  const onExportAnyway = () => {
+    setValidationBanner(null);
+    doExport();
+  };
+
   const hasActiveData =
     Object.keys(formData.fields).length > 0 ||
     !!formData.meta.auditor ||
     !!formData.meta.location;
 
   const onNewAudit = () => {
-    if (!window.confirm('Start a new audit? This will clear all current form data and photos.')) return;
+    setValidationBanner(null);
+    setConfirmNewAuditBanner(true);
+  };
+
+  const onConfirmNewAudit = () => {
     resetForm();
     resetPhotos();
     setExpandedSections(new Set());
+    setHighlightErrors(false);
+    setErroredSections(new Set());
+    setValidationBanner(null);
+    setConfirmNewAuditBanner(false);
+  };
+
+  const onCancelNewAudit = () => {
+    setConfirmNewAuditBanner(false);
   };
 
   return (
@@ -147,7 +182,19 @@ export default function App() {
         ))}
       </div>
 
-      <ActionBar onSaveDraft={onSaveDraft} onExportPdf={onExportPdf} onNewAudit={onNewAudit} hasActiveData={hasActiveData} isExporting={isExporting} />
+      <ActionBar
+        onSaveDraft={onSaveDraft}
+        onExportPdf={onExportPdf}
+        onNewAudit={onNewAudit}
+        hasActiveData={hasActiveData}
+        isExporting={isExporting}
+        validationBanner={validationBanner}
+        onFixFirst={onFixFirst}
+        onExportAnyway={onExportAnyway}
+        confirmNewAuditBanner={confirmNewAuditBanner}
+        onConfirmNewAudit={onConfirmNewAudit}
+        onCancelNewAudit={onCancelNewAudit}
+      />
       <Toast message={toast} onDone={() => setToast('')} />
     </div>
   );

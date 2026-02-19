@@ -5,6 +5,47 @@ Updated by the Docs Agent after every completed task or session.
 
 ---
 
+## [2026-02-20] — Mobile overflow fixes, accessibility pass, and inline confirmation banner
+
+**Agent:** Form Agent (with QA + Architect passes)
+**Files changed:**
+- `src/index.css`
+- `src/App.css`
+- `src/components/Section/Section.css`
+- `src/components/Section/Section.jsx`
+- `src/components/Header/Header.jsx`
+- `src/App.js`
+- `src/components/ActionBar/ActionBar.jsx`
+- `src/components/ActionBar/ActionBar.css`
+
+**What changed:**
+
+`src/index.css` — Added `overflow-x: hidden` to both `html` and `body` to prevent horizontal scroll on mobile when any child element overflows the viewport width.
+
+`src/App.css` — Added `width: 100%` to `.container` so it fills its parent on narrow viewports where `max-width: 760px` would not constrain it.
+
+`src/components/Section/Section.css` — Added `overflow: hidden`, `text-overflow: ellipsis`, `min-width: 0`, and `flex-shrink: 1` to `.section-title` so long section titles truncate with ellipsis instead of overflowing the section header row on narrow screens.
+
+`src/components/Section/Section.jsx` — Added `role="button"`, `tabIndex={0}`, `onKeyDown` (Enter/Space), `aria-expanded`, and `aria-controls` to the section header div for full keyboard and screen reader accessibility. Added `id={contentId}` to the section content div (paired with `aria-controls`). Added `aria-hidden={!expanded}` to the section content div so collapsed content is hidden from the accessibility tree. Added `aria-hidden="true"` to the section number span, section badge span, and expand icon span to remove decorative/redundant content from the accessible button name. Added `title={title}` to the section title span for a tooltip when the title is truncated. Added `aria-label` to all three StatusChip variants (complete, partial, error) and wrapped visible characters (✓, !, X/Y) in `aria-hidden="true"` inner spans to prevent double-announcement.
+
+`src/components/Header/Header.jsx` — Added `role="progressbar"`, `aria-valuenow`, `aria-valuemin={0}`, `aria-valuemax={100}`, and `aria-label` to the progress bar div. Added `aria-hidden="true"` to the header emoji icon div. Added a division-by-zero guard: `progressPercent` now uses `totalSections > 0 ? ... : 0`.
+
+`src/App.js` — Added `confirmNewAuditBanner` state (boolean) to replace `window.confirm` in the "Start New Audit" flow. `onNewAudit` now sets `confirmNewAuditBanner = true` and clears `validationBanner` instead of calling `window.confirm`. Added `onConfirmNewAudit`: resets form, photos, expandedSections, highlightErrors, erroredSections, validationBanner, and confirmNewAuditBanner in one handler. Added `onCancelNewAudit`: sets `confirmNewAuditBanner = false`. Updated `onFixFirst`: now also expands the first incomplete section into `expandedSections` before closing the validation banner, so the auditor lands directly on the section they need to fix. Passed `confirmNewAuditBanner`, `onConfirmNewAudit`, `onCancelNewAudit` as new props to `ActionBar`.
+
+`src/components/ActionBar/ActionBar.jsx` — Added `role="alert"` to the existing validation banner div so screen readers announce it when it appears. Added inline "Start New Audit" confirmation banner: rendered when `confirmNewAuditBanner` is true, replaces the "Start New Audit" button, shows "Clear all form data and photos? This cannot be undone." with "Cancel" and "Yes, clear everything" buttons.
+
+`src/components/ActionBar/ActionBar.css` — Added styles for `.banner-confirm .validation-banner-title` (neutral colour for confirm banner title vs red for validation) and `.validation-banner-subtitle` (muted secondary text below the confirm banner title).
+
+**Why:** Field employees reported the app content going beyond the screen edge on mobile — horizontal overflow was caused by missing `overflow-x` clamping and no `width: 100%` on the container. QA audit flagged that `window.confirm` is unreliable in mobile/PWA contexts and that all interactive elements lacked keyboard and screen reader accessibility. Section header had no `role`, `tabIndex`, or ARIA attributes — inaccessible to keyboard users and screen readers. Progress bar had no ARIA progressbar role — invisible to assistive technology. Emoji and decorative spans were being read aloud by screen readers unnecessarily.
+
+**QA outcome:** Three QA passes required. All Critical and High issues resolved. Passed on third pass.
+
+**Known issues carried forward (not fixed this session):**
+- **NEW-2 (Low):** `role="button"` div has no explicit `aria-label` fallback — accessible name depends on text content descendants; advisory only.
+- **NEW-4 (Low/cosmetic):** "Yes, clear everything" and "Fix first" share a CSS class despite different semantic roles.
+
+---
+
 ## [2026-02-19] — Form Agent — Form validation & completion tracking
 
 **Agent:** Form Agent

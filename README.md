@@ -65,17 +65,19 @@ src/
 
 Issues logged by QA that have not yet been fixed. Severity labels: **(H)** High, **(M)** Medium, **(L)** Low, **(C)** Code quality.
 
-| ID | Severity | Description | Logged |
-|----|----------|-------------|--------|
-| C-2 | (C) | `highlightErrors` resets on any field change — error chips in section headers may clear before the auditor has filled all flagged sections | 2026-02-19 |
-| H-3 | (H) | `window.confirm` pre-export validation dialog may be suppressed on some mobile browsers and PWA fullscreen contexts | 2026-02-19 |
-| H-4 | (H) | `StatusChip` spans have no `aria-label`; section header `<div>` has no `role="button"` or `tabIndex` — keyboard and screen reader users cannot interact with section headers | 2026-02-19 |
-| H-5 | (H) | Progress bar in `Header.jsx` has no `role="progressbar"`, `aria-valuenow`, `aria-valuemin`, or `aria-valuemax` attributes | 2026-02-19 |
-| L-2 | (L) | `.section-title` uses `white-space: nowrap` — section titles may overflow and be clipped on narrow screens | 2026-02-19 |
-| L-4 | (L) | Header emoji icon is missing `aria-hidden="true"` — may be read aloud unnecessarily by screen readers | 2026-02-19 |
-| M-1 | (M) | `savePhotos` silently swallows `QuotaExceededError` — no user-visible feedback when a photo fails to save because localStorage is full | 2026-02-18 |
-| L-1 | (L) | Removed user profile field data (`u{n}-age`, etc.) is not cleaned up from `formData.fields` when a user card is deleted — stale data persists in the draft | 2026-02-18 |
-| M-2 | (M) | jsPDF loaded via CDN — PDF export will fail if the auditor opens the app for the first time without an internet connection | 2026-02-19 |
+| ID | Severity | Description | Logged | Status |
+|----|----------|-------------|--------|--------|
+| C-2 | (C) | `highlightErrors` resets on any field change — error chips in section headers may clear before the auditor has filled all flagged sections | 2026-02-19 | Resolved 2026-02-20 |
+| H-3 | (H) | `window.confirm` pre-export validation dialog may be suppressed on some mobile browsers and PWA fullscreen contexts | 2026-02-19 | Resolved 2026-02-20 — replaced with inline confirmation banner |
+| H-4 | (H) | `StatusChip` spans have no `aria-label`; section header `<div>` has no `role="button"` or `tabIndex` — keyboard and screen reader users cannot interact with section headers | 2026-02-19 | Resolved 2026-02-20 |
+| H-5 | (H) | Progress bar in `Header.jsx` has no `role="progressbar"`, `aria-valuenow`, `aria-valuemin`, or `aria-valuemax` attributes | 2026-02-19 | Resolved 2026-02-20 |
+| L-2 | (L) | `.section-title` uses `white-space: nowrap` — section titles may overflow and be clipped on narrow screens | 2026-02-19 | Resolved 2026-02-20 — ellipsis truncation added |
+| L-4 | (L) | Header emoji icon is missing `aria-hidden="true"` — may be read aloud unnecessarily by screen readers | 2026-02-19 | Resolved 2026-02-20 |
+| M-1 | (M) | `savePhotos` silently swallows `QuotaExceededError` — no user-visible feedback when a photo fails to save because localStorage is full | 2026-02-18 | Open |
+| L-1 | (L) | Removed user profile field data (`u{n}-age`, etc.) is not cleaned up from `formData.fields` when a user card is deleted — stale data persists in the draft | 2026-02-18 | Open |
+| M-2 | (M) | jsPDF loaded via CDN — PDF export will fail if the auditor opens the app for the first time without an internet connection | 2026-02-19 | Open |
+| NEW-2 | (L) | `role="button"` section header div has no explicit `aria-label` fallback — accessible name is derived from text content descendants; advisory only | 2026-02-20 | Open |
+| NEW-4 | (L) | "Yes, clear everything" and "Fix first" buttons share a CSS class despite different semantic roles — cosmetic concern | 2026-02-20 | Open |
 
 ---
 
@@ -121,10 +123,16 @@ Issues logged by QA that have not yet been fixed. Severity labels: **(H)** High,
 8. **Dark Mode**
    - Add a dark mode toggle for low-light environments
 
-9. **Accessibility**
-   - Add proper ARIA labels to all form controls
-   - Ensure keyboard navigation works for all interactive elements
-   - Screen reader compatibility
+9. **Accessibility** — *Partially in progress (2026-02-20)*
+   - ~~Section header div: added `role="button"`, `tabIndex={0}`, `onKeyDown` (Enter/Space), `aria-expanded`, `aria-controls`~~ — keyboard and screen reader users can now activate section headers
+   - ~~StatusChip: added `aria-label` to all three variants; decorative characters wrapped in `aria-hidden="true"`~~ — chip state is announced without double-reading visible characters
+   - ~~Progress bar: added `role="progressbar"`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-label`~~ — completion progress now visible to assistive technology
+   - ~~Header emoji icon: added `aria-hidden="true"`~~ — no longer read aloud by screen readers
+   - ~~Collapsed section content: added `aria-hidden={!expanded}`~~ — hidden content excluded from the accessibility tree when collapsed
+   - ~~Section number, badge, and expand icon spans: added `aria-hidden="true"`~~ — decorative elements removed from the accessible button name
+   - Add proper ARIA labels to all remaining form controls (field-level labels, checkgroups, grids)
+   - Full screen reader compatibility audit still pending
+   - Known remaining gaps: NEW-2 (no explicit `aria-label` fallback on section header button), NEW-4 (shared CSS class on semantically distinct buttons)
 
 10. **Localization / Multi-Language**
     - Support Hindi, regional languages, or other languages for field auditors
