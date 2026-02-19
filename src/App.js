@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { generatePdf } from './utils/generatePdf';
 import Header from './components/Header/Header';
 import MetaBar from './components/MetaBar/MetaBar';
 import Section from './components/Section/Section';
@@ -31,9 +32,10 @@ const SECTIONS = [
 
 export default function App() {
   const { formData, updateMeta, updateField, getField, handleSaveDraft, resetForm, hasDraft } = useFormContext();
-  const { addPhotos, removePhoto, getPhotos, photoError, clearPhotoError, resetPhotos } = usePhotoContext();
+  const { photos, addPhotos, removePhoto, getPhotos, photoError, clearPhotoError, resetPhotos } = usePhotoContext();
   const [expandedSections, setExpandedSections] = useState(new Set());
   const [toast, setToast] = useState(hasDraft ? 'Draft restored' : '');
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (photoError) {
@@ -57,10 +59,20 @@ export default function App() {
   };
 
   const onExportPdf = () => {
-    setExpandedSections(new Set(SECTIONS.map(s => s.id)));
+    if (isExporting) return;
+    setIsExporting(true);
+    setToast('Generating PDF…');
+    // Small timeout lets the toast render before the synchronous PDF work blocks the thread
     setTimeout(() => {
-      window.print();
-    }, 200);
+      try {
+        generatePdf(formData, photos);
+        setToast('PDF saved!');
+      } catch (err) {
+        setToast(err.message || 'PDF export failed. Please try again.');
+      } finally {
+        setIsExporting(false);
+      }
+    }, 80);
   };
 
   const hasActiveData =
@@ -102,7 +114,7 @@ export default function App() {
         ))}
       </div>
 
-      <ActionBar onSaveDraft={onSaveDraft} onExportPdf={onExportPdf} onNewAudit={onNewAudit} hasActiveData={hasActiveData} />
+      <ActionBar onSaveDraft={onSaveDraft} onExportPdf={onExportPdf} onNewAudit={onNewAudit} hasActiveData={hasActiveData} isExporting={isExporting} />
       <Toast message={toast} onDone={() => setToast('')} />
     </div>
   );

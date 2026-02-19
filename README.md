@@ -74,10 +74,12 @@ src/
    - Automatically save the draft every 30-60 seconds instead of requiring manual save
    - Show a "last saved at" timestamp
 
-3. **Better PDF / Report Export**
-   - Use a proper PDF library (e.g., `react-pdf`, `jsPDF`, or `html2pdf.js`) instead of `window.print()`
-   - Include a cover page with audit metadata, summary scores, and date
-   - Generate a risk summary section automatically based on the selected values
+3. **Better PDF / Report Export** ✅ *Implemented 2026-02-19*
+   - ~~Use a proper PDF library instead of `window.print()`~~ — replaced with jsPDF via CDN
+   - Designed "Findings" report: cover header, 8-section field tables, comments blocks, inline photos, page footers
+   - High-risk values highlighted in red; filename is dynamic (`Findings_[Location]_[Date].pdf`)
+   - Works on mobile — triggers a direct file download with no print dialog
+   - Pending: risk summary section (roadmap item 4)
 
 4. **Risk Score Dashboard**
    - Compute a safety risk score based on field selections (e.g., high-risk items, missing anti-skid mats)
