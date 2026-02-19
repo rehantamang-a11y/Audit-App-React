@@ -14,6 +14,7 @@
  */
 
 import { buildPdfData } from './pdfDataBuilder';
+import { computeRiskScore } from './riskEngine';
 
 // ─── Colour palette ──────────────────────────────────────────────────────────
 const C = {
@@ -302,6 +303,204 @@ function buildTableData(rows) {
   return { body, rowMeta };
 }
 
+// ─── Risk summary block ───────────────────────────────────────────────────────
+
+const LEVEL_COLORS_PDF = {
+  'safe':      [46,  125, 50 ],
+  'caution':   [193, 125, 0  ],
+  'at-risk':   [217, 119, 6  ],
+  'high-risk': [204, 0,   0  ],
+};
+
+const LEVEL_LABELS_PDF = {
+  'safe':      'Safe',
+  'caution':   'Caution',
+  'at-risk':   'At Risk',
+  'high-risk': 'High Risk',
+};
+
+const SEVERITY_COLORS_PDF = {
+  critical: [204, 0,   0  ],
+  high:     [217, 119, 6  ],
+  medium:   [193, 125, 0  ],
+};
+
+/**
+ * Draws the risk score summary block onto the PDF.
+ * Returns the new Y position after the block.
+ */
+function drawRiskSummary(doc, risk, y, marginX, contentW, pageH) {
+  if (!risk || !risk.hasAnyData) return y;
+
+  const { score, level, sectionScores, flags } = risk;
+  const levelColor = LEVEL_COLORS_PDF[level] || C.red;
+  const levelLabel = LEVEL_LABELS_PDF[level] || '';
+
+  let curY = y + 4;
+
+  // ── Heading strip (same style as section headings) ──
+  const headingH = 11;
+  fill(doc, C.red);
+  doc.rect(marginX, curY, 3, headingH, 'F');
+  fill(doc, C.charcoal);
+  doc.rect(marginX + 3, curY, contentW - 3, headingH, 'F');
+  textColor(doc, C.white);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.text('Safety Risk Score', marginX + 10, curY + 7.5);
+  curY += headingH + 6;
+
+  // ── Score number ──
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(26);
+  doc.setTextColor(levelColor[0], levelColor[1], levelColor[2]);
+  doc.text(String(score), marginX, curY + 11);
+
+  // "/100" beside score
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  textColor(doc, C.textMuted);
+  doc.text('/ 100', marginX + 20, curY + 11);
+
+  // Level pill badge
+  const badgeW = 22;
+  const badgeH = 6.5;
+  const badgeX = marginX + 48;
+  const badgeY = curY + 5;
+  fill(doc, levelColor);
+  doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1.5, 1.5, 'F');
+  textColor(doc, C.white);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.text(levelLabel.toUpperCase(), badgeX + badgeW / 2, badgeY + badgeH / 2 + 0.5, {
+    align: 'center',
+    baseline: 'middle',
+  });
+
+  curY += 17;
+
+  // ── Score bar ──
+  const barH = 5;
+  fill(doc, C.lightGrey);
+  doc.rect(marginX, curY, contentW, barH, 'F');
+  fill(doc, levelColor);
+  doc.rect(marginX, curY, Math.round(contentW * (score / 100)), barH, 'F');
+  curY += barH + 8;
+
+  // ── Section breakdown (only sections with data) ──
+  const sectionList = Object.values(sectionScores).filter(s => s.hasData && s.score !== null);
+  if (sectionList.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    textColor(doc, C.textMuted);
+    doc.text('SECTION SCORES', marginX, curY);
+    curY += 5;
+
+    const colW    = (contentW - 8) / 2; // two columns
+    const nameW   = 44;
+    const miniBarW = 28;
+    const miniBarH = 3;
+    const rowH    = 9;
+
+    sectionList.forEach((s, idx) => {
+      const col  = idx % 2;
+      const row  = Math.floor(idx / 2);
+      const x    = marginX + col * (colW + 8);
+      const rowY = curY + row * rowH;
+
+      // Name (truncate to fit)
+      const nameStr = s.name.length > 12 ? s.name.slice(0, 12) + '…' : s.name;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      textColor(doc, C.textSecondary);
+      doc.text(nameStr, x, rowY + 2.5);
+
+      // Mini bar
+      const barColor = s.score >= 80 ? [46, 125, 50]
+                     : s.score >= 60 ? [193, 125, 0]
+                     : s.score >= 40 ? [217, 119, 6]
+                     :                 [204, 0, 0];
+      fill(doc, C.lightGrey);
+      doc.rect(x + nameW, rowY, miniBarW, miniBarH, 'F');
+      doc.setFillColor(barColor[0], barColor[1], barColor[2]);
+      doc.rect(x + nameW, rowY, Math.round(miniBarW * (s.score / 100)), miniBarH, 'F');
+
+      // Score text
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(barColor[0], barColor[1], barColor[2]);
+      doc.text(String(s.score), x + nameW + miniBarW + 3, rowY + 2.5);
+    });
+
+    curY += Math.ceil(sectionList.length / 2) * rowH + 6;
+  }
+
+  // ── Flags ──
+  if (flags.length > 0) {
+    // Page break check before flags block
+    if (curY > pageH - 50) {
+      doc.addPage();
+      curY = 20;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    textColor(doc, C.textMuted);
+    doc.text(`IDENTIFIED RISKS (${flags.length})`, marginX, curY);
+    curY += 6;
+
+    const maxFlags = 8;
+    const showFlags = flags.slice(0, maxFlags);
+
+    showFlags.forEach(f => {
+      if (curY > pageH - 20) {
+        doc.addPage();
+        curY = 20;
+      }
+
+      const dotColor = SEVERITY_COLORS_PDF[f.severity] || C.textMuted;
+      const sevLabel = f.severity.charAt(0).toUpperCase() + f.severity.slice(1);
+
+      // Severity label on the right (draw first so text flows left of it)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.5);
+      doc.setTextColor(dotColor[0], dotColor[1], dotColor[2]);
+      const sevX = marginX + contentW;
+      doc.text(sevLabel.toUpperCase(), sevX, curY, { align: 'right' });
+
+      // Bullet dot (radius 1.2, centred vertically on the text line)
+      doc.setFillColor(dotColor[0], dotColor[1], dotColor[2]);
+      doc.circle(marginX + 1.5, curY - 1, 1.2, 'F');
+
+      // Flag text (leave room for severity label ~20mm from right)
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      textColor(doc, C.textPrimary);
+      const maxFlagW = contentW - 25;
+      const flagLines = doc.splitTextToSize(f.flag, maxFlagW);
+      const truncated = flagLines.length > 1 ? flagLines[0].slice(0, -1) + '…' : flagLines[0];
+      doc.text(truncated, marginX + 6, curY);
+
+      curY += 6.5;
+    });
+
+    if (flags.length > maxFlags) {
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7);
+      textColor(doc, C.textMuted);
+      doc.text(`+ ${flags.length - maxFlags} more risks identified`, marginX + 6, curY);
+      curY += 6;
+    }
+  }
+
+  // Reset PDF state so subsequent drawing functions start from a clean baseline
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  textColor(doc, C.textPrimary);
+
+  return curY + 6;
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 /**
@@ -327,9 +526,13 @@ export function generatePdf(formData, photos) {
   const contentW = pageW - marginX * 2;
 
   const sections = buildPdfData(formData, photos);
+  const riskScore = computeRiskScore(formData.fields);
 
   // ── First page header ──
   let currentY = drawHeader(doc, formData.meta, pageW);
+
+  // ── Risk summary (after header, before sections) ──
+  currentY = drawRiskSummary(doc, riskScore, currentY, marginX, contentW, pageH);
 
   // ── Sections ──
   for (const section of sections) {

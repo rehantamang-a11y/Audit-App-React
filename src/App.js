@@ -8,6 +8,8 @@ import Toast from './components/Toast/Toast';
 import { useFormContext } from './context/FormContext';
 import { usePhotoContext } from './context/PhotoContext';
 import { computeSectionCompletion } from './data/sectionSchema';
+import { computeRiskScore } from './utils/riskEngine';
+import RiskDashboard from './components/RiskDashboard/RiskDashboard';
 
 import PhysicalInfrastructure from './sections/PhysicalInfrastructure';
 import Accessories from './sections/Accessories';
@@ -51,6 +53,8 @@ export default function App() {
   }, [formData.fields]);
 
   const completedCount = Object.values(sectionCompletions).filter(c => c.complete).length;
+
+  const riskScore = useMemo(() => computeRiskScore(formData.fields), [formData.fields]);
 
   // Clear error highlighting only once all previously-errored sections are fixed
   useEffect(() => {
@@ -181,6 +185,8 @@ export default function App() {
           </Section>
         ))}
       </div>
+
+      <RiskDashboard risk={riskScore} />
 
       <ActionBar
         onSaveDraft={onSaveDraft}

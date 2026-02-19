@@ -29,6 +29,7 @@ src/
 │   ├── UserProfile/     # Individual user profile card
 │   ├── Toast/           # Toast notification
 │   ├── ActionBar/       # Save Draft / Export PDF buttons
+│   ├── RiskDashboard/   # Safety score dashboard (score, sub-scores, flags)
 │   └── fields/          # Reusable form field components
 │       ├── SelectField
 │       ├── TextField
@@ -50,6 +51,7 @@ src/
 │   ├── useFormData.js   # Form state management & draft persistence
 │   └── usePhotos.js     # Photo upload state management
 ├── utils/
+│   ├── riskEngine.js    # Pure scoring engine (0–100 safety score)
 │   └── storage.js       # localStorage helpers for draft save/load
 ├── styles/
 │   └── variables.css    # CSS custom properties (design tokens)
@@ -103,9 +105,10 @@ Issues logged by QA that have not yet been fixed. Severity labels: **(H)** High,
    - Works on mobile — triggers a direct file download with no print dialog
    - Pending: risk summary section (roadmap item 4)
 
-4. **Risk Score Dashboard**
-   - Compute a safety risk score based on field selections (e.g., high-risk items, missing anti-skid mats)
-   - Show a visual summary dashboard at the top or as a final section
+4. **Risk Score Dashboard** ✅ *Implemented 2026-02-20*
+   - ~~Compute a safety risk score based on field selections~~ — implemented as a declarative rule engine in `riskEngine.js` covering sections 1–4, 7–8 with weighted deductions and an age multiplier (1.3× for age ≥70, 1.15× for age ≥60) for Section 5
+   - ~~Show a visual summary dashboard~~ — live dashboard rendered after all 8 sections with animated score bar, per-section sub-scores, and a prioritised flags list (Critical / High / Medium)
+   - Risk score integrated into PDF as a summary block on page 1 (score number, level badge, coloured bar, section sub-scores, and flags)
 
 5. **Offline / PWA Support**
    - Make the app installable as a Progressive Web App

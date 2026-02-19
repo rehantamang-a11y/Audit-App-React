@@ -5,6 +5,43 @@ Updated by the Docs Agent after every completed task or session.
 
 ---
 
+## [2026-02-20] — Risk Score Dashboard & PDF risk summary
+
+**Agent:** Form Agent (with QA pass)
+**Files changed:**
+- `src/utils/riskEngine.js` (new)
+- `src/components/RiskDashboard/RiskDashboard.jsx` (new)
+- `src/components/RiskDashboard/RiskDashboard.css` (new)
+- `src/App.js`
+- `src/utils/generatePdf.js`
+- `src/App.css`
+
+**What changed:**
+
+`src/utils/riskEngine.js` — New pure function `computeRiskScore(formFields)` returning `{ score, level, sectionScores, flags, hasAnyData }`. Score 0–100 (higher = safer). Declarative `RULES` array covers sections 1–4, 7–8 with weighted deductions per field value. Section 5 handled dynamically: user age drives an age multiplier (1.3× for age ≥70, 1.15× for age ≥60) that amplifies critical and high-severity deductions. Section sub-scores computed as a 0–100 ratio of actual vs maximum deductions per section. Flags deduplicated and sorted by severity (critical → high → medium).
+
+`src/components/RiskDashboard/RiskDashboard.jsx` — Dashboard component rendered after the 8 audit sections, just above the ActionBar. Displays: empty-state placeholder when no audit data entered; large score number with colour matching the risk level; animated level badge (Safe / Caution / At Risk / High Risk); animated score progress bar; section breakdown sub-scores in a responsive 2-column grid; prioritised flags list with coloured severity badges (Critical / High / Medium).
+
+`src/components/RiskDashboard/RiskDashboard.css` — Responsive styles using existing CSS variables. 2-column section grid collapses to 1-column on mobile (≤560px). Section name column set to 96px — wide enough to display "Infrastructure" without truncation. Score number colour adapts per risk level (green → amber → orange → red).
+
+`src/App.js` — Added `computeRiskScore` import from `./utils/riskEngine`. Added `RiskDashboard` import. Added `riskScore = useMemo(() => computeRiskScore(formData.fields), [formData.fields])`. Rendered `<RiskDashboard risk={riskScore} />` between the sections `.content` div and `<ActionBar>`.
+
+`src/utils/generatePdf.js` — Added `computeRiskScore` import. Computes `riskScore` inside `generatePdf()`. Added `drawRiskSummary()` function drawing a safety summary block on page 1 after the header: charcoal heading strip, score number + coloured level badge, score bar, 2-column section sub-score mini-bars with coloured fills, and a flags list (max 8 with overflow note). State reset (font/color) added at function end to prevent bleed into subsequent section tables.
+
+`src/App.css` — Removed bottom padding from `.content` so sections sit flush above the dashboard.
+
+**QA fixes applied this session:**
+- H-4: Reduced PDF bullet dot radius 1.5 → 1.2 for cleaner flag list spacing
+- M-1: Widened `.risk-section-name` from 80px → 96px; "Infrastructure" no longer truncates
+- Q-2: Added font/color state reset at end of `drawRiskSummary` to prevent style bleed into section tables
+- A-4: Added `role="img"` + `aria-label` to each section sub-score bar container for screen reader context
+
+**Why:** Auditors needed a quick, visual summary of overall bathroom safety at-a-glance, and the PDF needed to lead with a risk overview rather than jumping straight to section tables. The scoring engine is declarative so future rule changes require only adding entries to the `RULES` array.
+
+**QA outcome:** One QA pass. All 4 issues resolved. Passed on second build.
+
+---
+
 ## [2026-02-20] — Mobile overflow fixes, accessibility pass, and inline confirmation banner
 
 **Agent:** Form Agent (with QA + Architect passes)
