@@ -61,14 +61,34 @@ src/
 
 ---
 
+## Known Issues
+
+Issues logged by QA that have not yet been fixed. Severity labels: **(H)** High, **(M)** Medium, **(L)** Low, **(C)** Code quality.
+
+| ID | Severity | Description | Logged |
+|----|----------|-------------|--------|
+| C-2 | (C) | `highlightErrors` resets on any field change — error chips in section headers may clear before the auditor has filled all flagged sections | 2026-02-19 |
+| H-3 | (H) | `window.confirm` pre-export validation dialog may be suppressed on some mobile browsers and PWA fullscreen contexts | 2026-02-19 |
+| H-4 | (H) | `StatusChip` spans have no `aria-label`; section header `<div>` has no `role="button"` or `tabIndex` — keyboard and screen reader users cannot interact with section headers | 2026-02-19 |
+| H-5 | (H) | Progress bar in `Header.jsx` has no `role="progressbar"`, `aria-valuenow`, `aria-valuemin`, or `aria-valuemax` attributes | 2026-02-19 |
+| L-2 | (L) | `.section-title` uses `white-space: nowrap` — section titles may overflow and be clipped on narrow screens | 2026-02-19 |
+| L-4 | (L) | Header emoji icon is missing `aria-hidden="true"` — may be read aloud unnecessarily by screen readers | 2026-02-19 |
+| M-1 | (M) | `savePhotos` silently swallows `QuotaExceededError` — no user-visible feedback when a photo fails to save because localStorage is full | 2026-02-18 |
+| L-1 | (L) | Removed user profile field data (`u{n}-age`, etc.) is not cleaned up from `formData.fields` when a user card is deleted — stale data persists in the draft | 2026-02-18 |
+| M-2 | (M) | jsPDF loaded via CDN — PDF export will fail if the auditor opens the app for the first time without an internet connection | 2026-02-19 |
+
+---
+
 ## Improvements Roadmap
 
 ### User Experience (UX) Improvements
 
-1. **Form Validation & Completion Tracking**
-   - Show per-section completion percentage (not just "opened")
-   - Highlight required fields that are empty on export
-   - Add visual indicators (green check) for fully completed sections
+1. **Form Validation & Completion Tracking** ✅ *Implemented 2026-02-19*
+   - ~~Show per-section completion percentage (not just "opened")~~ — progress bar now reflects required-field completion, not sections opened
+   - ~~Highlight required fields that are empty on export~~ — pre-export `window.confirm` dialog lists every incomplete section by name; section chips turn red
+   - ~~Add visual indicators (green check) for fully completed sections~~ — green/amber/red status chips in each section header
+   - Section 5 (User Profiles) completion scales dynamically with the number of user profiles added
+   - Known limitations: error chips clear on any field change (C-2); confirm dialog may be suppressed in some PWA/mobile contexts (H-3); status chips and progress bar are missing ARIA attributes (H-4, H-5)
 
 2. **Auto-Save**
    - Automatically save the draft every 30-60 seconds instead of requiring manual save

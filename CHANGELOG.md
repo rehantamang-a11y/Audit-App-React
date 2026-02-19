@@ -5,6 +5,58 @@ Updated by the Docs Agent after every completed task or session.
 
 ---
 
+## [2026-02-19] — Form Agent — Form validation & completion tracking
+
+**Agent:** Form Agent
+**Files changed:**
+- `src/data/sectionSchema.js`
+- `src/App.js`
+- `src/components/Header/Header.jsx`
+- `src/components/Section/Section.jsx`
+- `src/components/Section/Section.css`
+
+### What changed and why
+
+**`src/data/sectionSchema.js` — Added completion-computation helpers**
+Added two new exported functions:
+- `getDynamicRequiredKeys(sectionNum, formFields)` — builds the full list of required field keys for a given section. Section 5 is handled specially: instead of a static list, the function reads the stored `5-userIds` array and expands the per-user field templates (e.g. `u{id}-age`, `u{id}-weight`) for every active user ID, so required-field counts scale correctly with the number of user profiles added.
+- `computeSectionCompletion(sectionNum, formFields)` — calls `getDynamicRequiredKeys` and counts how many of those keys have a non-empty value in `formFields`. Returns `{ filled, total, complete }`. Used by `App.js` to compute one completion object per section on every render.
+
+**`src/App.js` — Completion map, error state, pre-export validation**
+- Added `useMemo`-computed `sectionCompletions` map: one `{ filled, total, complete }` entry per section, recalculated whenever `formData.fields` changes.
+- Added `completedCount` derived value: count of sections where `complete === true`.
+- Added `highlightErrors` state (boolean, default `false`): set to `true` when the auditor attempts to export with incomplete sections; auto-resets to `false` when any field value changes so error chips clear themselves as the auditor fills in the gaps.
+- Modified `onExportPdf`: before triggering PDF generation, checks all 8 sections. If any are incomplete, shows a `window.confirm` dialog that lists the names of every incomplete section by number and title. The auditor can proceed anyway or cancel to go back and fill in missing fields.
+- Passes `completion` and `hasError` as new props down to each `<Section>` component.
+
+**`src/components/Header/Header.jsx` — Progress bar reflects real completion**
+- Removed `expandedCount` prop (which tracked sections *opened*).
+- Added `completedCount` prop (sections with all required fields filled).
+- Progress bar percentage and label now derived from `completedCount`. Label reads "X / 8 sections complete" when partially done and "All sections complete" when all 8 are done.
+
+**`src/components/Section/Section.jsx` — Per-section status chip**
+Added a `StatusChip` sub-component rendered inside each section's header row. Behaviour:
+- No chip shown if the section has not been touched at all (0 filled, 0 total, or total is 0).
+- Green chip with a "✓" checkmark when all required fields in the section are filled (`complete === true`).
+- Amber chip showing "X/Y" when the section is partially filled.
+- Red chip showing "! X/Y" when the auditor attempted export and this section was still incomplete (`hasError` prop is true and the section is not complete). Error appearance is driven by the `highlightErrors` flag passed from `App.js`.
+
+**`src/components/Section/Section.css` — Status chip styles**
+Added `.section-status` pill base class and three state variants:
+- `.status-complete` — green background, white text
+- `.status-partial` — amber background, dark text
+- `.status-error` — red background, white text
+
+### Known issues logged (not fixed this session)
+- **C-2:** `highlightErrors` resets on any field change, which can dismiss error chips before the auditor has filled in all flagged sections.
+- **H-3:** `window.confirm` pre-export dialog may be suppressed in some mobile browsers and PWA fullscreen contexts.
+- **H-4:** `StatusChip` `<span>` elements have no `aria-label`; section header `<div>` has no `role="button"` or `tabIndex` for keyboard accessibility.
+- **H-5:** Progress bar in `Header.jsx` has no `role="progressbar"`, `aria-valuenow`, `aria-valuemin`, or `aria-valuemax` attributes.
+- **L-2:** `.section-title` uses `white-space: nowrap` which may overflow on narrow screens.
+- **L-4:** Header emoji icon is missing `aria-hidden="true"`.
+
+---
+
 ## [2026-02-19] — PDF Agent — Findings PDF report (replaces window.print())
 
 **Agent:** PDF Agent
