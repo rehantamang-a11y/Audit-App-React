@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/Audit-App-React/static/css/main.4a962fe8.css",
-    "main.js": "/Audit-App-React/static/js/main.783e0f22.js",
+    "main.css": "/Audit-App-React/static/css/main.cf418c31.css",
+    "main.js": "/Audit-App-React/static/js/main.4614ee15.js",
     "index.html": "/Audit-App-React/index.html",
-    "main.4a962fe8.css.map": "/Audit-App-React/static/css/main.4a962fe8.css.map",
-    "main.783e0f22.js.map": "/Audit-App-React/static/js/main.783e0f22.js.map"
+    "main.cf418c31.css.map": "/Audit-App-React/static/css/main.cf418c31.css.map",
+    "main.4614ee15.js.map": "/Audit-App-React/static/js/main.4614ee15.js.map"
   },
   "entrypoints": [
-    "static/css/main.4a962fe8.css",
-    "static/js/main.783e0f22.js"
+    "static/css/main.cf418c31.css",
+    "static/js/main.4614ee15.js"
   ]
 }
