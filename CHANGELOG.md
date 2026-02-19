@@ -5,6 +5,60 @@ Updated by the Docs Agent after every completed task or session.
 
 ---
 
+## [2026-02-19] — PDF Agent — Findings PDF report (replaces window.print())
+
+**Agent:** PDF Agent
+**Branch:** `feature/pdf-findings-report`
+**QA review:** Completed — all issues resolved before commit
+**Files changed:**
+- `public/index.html` — CDN scripts added
+- `src/utils/pdfDataBuilder.js` (new)
+- `src/utils/generatePdf.js` (new)
+- `src/App.js` — replaced `onExportPdf`, added `isExporting` state
+- `src/components/ActionBar/ActionBar.jsx` — loading state on Export button
+
+### What changed and why
+
+**`public/index.html` — jsPDF loaded via CDN**
+Added jsPDF 2.5.1 and jsPDF-autoTable 3.8.2 as CDN `<script>` tags before the closing `</body>` tag. npm install is unavailable in the sandbox environment; CDN loading also reduces the main bundle size. Scripts are cached by the browser after first load.
+
+**`src/utils/pdfDataBuilder.js` — Form data → PDF data transformer (new file)**
+Walks `sectionSchema` to transform raw `formData.fields` into a clean, display-ready array of section objects. Handles all 8 field types: `select`, `text`, `textarea`, `radio`, `checkgroup`, `grid`, `accessory`, and `avail-condition`. Resolves all raw values (e.g. `'ceramic-tiles'`) to human-readable labels (e.g. `'Ceramic Tiles'`) using the schema's `options` arrays. Strips internal management keys `5-userIds` and `5-nextId`. Handles Section 5 dynamic user profiles by reading active IDs and building one sub-block per user. If no user profiles were recorded, returns a single "No user profiles recorded" placeholder row instead of a ghost blank user.
+
+**`src/utils/generatePdf.js` — Designed Findings PDF generator (new file)**
+Replaces `window.print()` with a programmatic jsPDF document. Layout:
+- First-page header: brand-red stripe (3mm) + dark charcoal band + "Bathroom Safety Audit / FINDINGS REPORT" title + 3-column meta row (Auditor, Date, Location). Long meta values are truncated with `…`.
+- Per section (1–8): red-accented charcoal heading strip with section number chip; two-column autoTable (Field | Value) with grey subheading rows and alternating row shading; high-risk field values rendered in red bold; comments block with left red accent border (handles page overflow by splitting across pages); photos in a 2-column grid (handles page overflow per row). Photo format detected from data URI prefix (PNG vs JPEG) rather than hardcoded.
+- Every page: footer with "Bathroom Safety Audit — Confidential" and "Page X of Y".
+- Filename: `Findings_[Location]_[Date].pdf`, special characters sanitised.
+- Guard on `doc.lastAutoTable?.finalY` — safe fallback if autoTable fails internally.
+
+**`src/App.js` — Replace onExportPdf**
+- Removed `window.print()` and the `setExpandedSections` expand-all call
+- Added `generatePdf` import from `./utils/generatePdf`
+- `photos` (raw object) now destructured from `usePhotoContext()` and passed directly to `generatePdf`
+- Added `isExporting` state — set true before PDF generation, false in `finally`
+- Short `setTimeout(80ms)` before generating allows the "Generating PDF…" toast to render before the synchronous jsPDF work blocks the thread
+- Toast shows "Generating PDF…" → "PDF saved!" on success, or the error message on failure
+- `isExporting` passed to `ActionBar`
+
+**`src/components/ActionBar/ActionBar.jsx` — Loading state**
+- `isExporting` prop added
+- Export button label switches to "Generating…" while exporting
+- All three buttons (`Save Draft`, `Export as PDF`, `Start New Audit`) disabled during export to prevent double-tap
+
+### QA issues resolved this session
+- (High) `doc.lastAutoTable` unguarded — fixed with `?.finalY ?? currentY`
+- (Medium) `drawComments` page overflow for long comments — fixed with chunked while-loop
+- (Medium) Photo format hardcoded as JPEG — fixed with data URI prefix detection
+- (Low) Section 5 empty state rendered ghost "User 1" — fixed with early return placeholder row
+- (Low) Silent meta value truncation — fixed with `…` suffix
+
+### Known limitations carried forward
+- jsPDF CDN requires internet on first app load. If an auditor opens the app for the first time without internet, PDF export will fail with a user-visible error toast. Addressed when PWA/offline support is implemented (roadmap item 5).
+
+---
+
 ## [2026-02-18] — Agent team setup & Phase 1 audit
 
 **Agent:** Architect Agent
