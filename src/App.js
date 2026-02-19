@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { generatePdf } from './utils/generatePdf';
 import Header from './components/Header/Header';
 import MetaBar from './components/MetaBar/MetaBar';
@@ -7,6 +7,7 @@ import ActionBar from './components/ActionBar/ActionBar';
 import Toast from './components/Toast/Toast';
 import { useFormContext } from './context/FormContext';
 import { usePhotoContext } from './context/PhotoContext';
+import { computeSectionCompletion } from './data/sectionSchema';
 
 import PhysicalInfrastructure from './sections/PhysicalInfrastructure';
 import Accessories from './sections/Accessories';
@@ -36,6 +37,21 @@ export default function App() {
   const [expandedSections, setExpandedSections] = useState(new Set());
   const [toast, setToast] = useState(hasDraft ? 'Draft restored' : '');
   const [isExporting, setIsExporting] = useState(false);
+  const [highlightErrors, setHighlightErrors] = useState(false);
+
+  const sectionCompletions = useMemo(() => {
+    const map = {};
+    SECTIONS.forEach(({ number }) => {
+      map[number] = computeSectionCompletion(number, formData.fields);
+    });
+    return map;
+  }, [formData.fields]);
+
+  const completedCount = Object.values(sectionCompletions).filter(c => c.complete).length;
+
+  useEffect(() => {
+    setHighlightErrors(false);
+  }, [formData.fields]);
 
   useEffect(() => {
     if (photoError) {
@@ -60,6 +76,21 @@ export default function App() {
 
   const onExportPdf = () => {
     if (isExporting) return;
+
+    const incompleteSections = SECTIONS.filter(s => !sectionCompletions[s.number].complete);
+    const missingMeta = !formData.meta.auditor.trim() || !formData.meta.location.trim();
+
+    if (incompleteSections.length > 0 || missingMeta) {
+      const lines = ['Required fields are missing:'];
+      if (missingMeta) lines.push('  • Auditor / Location (top bar)');
+      incompleteSections.forEach(s => lines.push(`  • Section ${s.number}: ${s.title}`));
+      lines.push('', 'Export anyway?');
+      if (!window.confirm(lines.join('\n'))) {
+        setHighlightErrors(true);
+        return;
+      }
+    }
+
     setIsExporting(true);
     setToast('Generating PDF…');
     // Small timeout lets the toast render before the synchronous PDF work blocks the thread
@@ -89,7 +120,7 @@ export default function App() {
 
   return (
     <div className="container">
-      <Header expandedCount={expandedSections.size} totalSections={SECTIONS.length} />
+      <Header completedCount={completedCount} totalSections={SECTIONS.length} />
       <MetaBar meta={formData.meta} onUpdate={updateMeta} />
 
       <div className="content">
@@ -102,6 +133,8 @@ export default function App() {
             hint={hint}
             expanded={expandedSections.has(id)}
             onToggle={() => toggleSection(id)}
+            completion={sectionCompletions[number]}
+            hasError={highlightErrors && !sectionCompletions[number].complete}
           >
             <Component
               getField={getField}

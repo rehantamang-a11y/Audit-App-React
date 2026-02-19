@@ -1,8 +1,9 @@
 import React from 'react';
 import './Header.css';
 
-export default function Header({ expandedCount, totalSections }) {
-  const progressPercent = Math.round((expandedCount / totalSections) * 100);
+export default function Header({ completedCount, totalSections }) {
+  const progressPercent = Math.round((completedCount / totalSections) * 100);
+  const allComplete = completedCount === totalSections;
 
   return (
     <div className="header">
@@ -16,7 +17,7 @@ export default function Header({ expandedCount, totalSections }) {
           <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
         </div>
         <span className="progress-label">
-          {expandedCount} / {totalSections} sections opened
+          {allComplete ? 'All sections complete' : `${completedCount} / ${totalSections} sections complete`}
         </span>
       </div>
     </div>
