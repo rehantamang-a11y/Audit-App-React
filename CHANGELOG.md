@@ -5,6 +5,38 @@ Updated by the Docs Agent after every completed task or session.
 
 ---
 
+## [2026-02-20] — PWA / Offline Support
+
+**Agent:** Architect Agent (planning) + Implementation Agent (build) + QA Agent (review and approval)
+**Files changed:**
+- `package.json` / `package-lock.json` — new npm dependencies
+- `src/utils/generatePdf.js` — removed CDN guard; switched to ESM imports
+- `public/index.html` — removed jsPDF CDN script tags
+- `public/manifest.json` — replaced CRA defaults with real app identity and PWA metadata
+- `src/service-worker.js` (new) — Workbox-powered service worker
+- `src/serviceWorkerRegistration.js` (new) — production-only SW registration utility
+- `src/index.js` — registered the service worker on app startup
+
+**What changed:**
+
+`package.json` / `package-lock.json` — Installed `jspdf@2.5.1` and `jspdf-autotable@3.8.2` as explicit npm dependencies so they are bundled at build time rather than fetched from a CDN at runtime. Also installed Workbox packages explicitly at `^6.5.4`: `workbox-core`, `workbox-expiration`, `workbox-precaching`, `workbox-routing`, `workbox-strategies`, and `workbox-cacheable-response`. These are the modules imported by the new service worker.
+
+`src/utils/generatePdf.js` — Removed the CDN guard (`if (!window.jspdf)` throw) and the `const { jsPDF } = window.jspdf` destructure that depended on a globally injected `window.jspdf` object. Added ESM imports at the top of the file: `import { jsPDF } from 'jspdf'` and `import 'jspdf-autotable'`. Updated the file-level JSDoc comment to reflect that jsPDF is now bundled via npm rather than loaded from CDN. All existing PDF generation logic is unchanged.
+
+`public/index.html` — Removed the two CDN `<script>` tags that loaded jsPDF 2.5.1 and jspdf-autotable 3.8.2 from cdnjs.cloudflare.com. These tags are no longer needed because both libraries are now bundled.
+
+`public/manifest.json` — Replaced all Create React App placeholder values with real app identity: `name` changed from "Create React App Sample" to "Bathroom Safety Audit"; `short_name` changed from "React App" to "Safety Audit"; added `description`: "Field audit tool for assessing bathroom safety risks"; `theme_color` changed from `#000000` to `#cc0000` (brand red); `start_url` changed from `"."` to `"/Audit-App-React/"` to match the GitHub Pages subdirectory path; added `scope`: `"/Audit-App-React/"` for the same reason; added `orientation`: `"portrait"`; added `categories`: `["health", "utilities"]`; added `"purpose": "maskable any"` to the 512×512 icon entry so the icon can be adapted to circular and squircle shapes on Android.
+
+`src/service-worker.js` (new) — A Workbox-powered service worker using Create React App's InjectManifest pattern. Precaches all JS, CSS, and HTML build assets via `self.__WB_MANIFEST` (the list is injected at build time by the CRA Workbox plugin). Includes a SPA navigation fallback: all navigate requests that do not match a precached URL are served the cached `index.html` so client-side routing works offline. Google Fonts stylesheets are cached with a StaleWhileRevalidate strategy; Google Fonts font files are cached with CacheFirst with a 1-year expiry and a CacheableResponsePlugin restricted to HTTP 0 and 200 responses. Includes a `SKIP_WAITING` message handler so a waiting service worker can be activated immediately — the infrastructure for a future "update available" toast.
+
+`src/serviceWorkerRegistration.js` (new) — Production-only service worker registration utility copied from the CRA template and adapted for this project. Registers the service worker only when `process.env.NODE_ENV === 'production'` and the app is served from a valid origin. Handles localhost registration separately from production with a `checkValidServiceWorker` path for local testing. Accepts `onUpdate` and `onReady` callbacks so a future UI can respond to SW lifecycle events (e.g. showing a "New version available — reload" banner). Includes comments explaining the production gate and how to test offline behaviour locally using `npm run build && npx serve -s build`.
+
+`src/index.js` — Added `import * as serviceWorkerRegistration from './serviceWorkerRegistration'` and called `serviceWorkerRegistration.register()` after the React render. This activates service worker registration in production builds.
+
+**Why:** jsPDF was previously loaded from a public CDN at runtime. If an auditor opened the app for the first time without an internet connection, the CDN scripts would fail to load and PDF export would throw a runtime error. Moving to npm-bundled jsPDF means the PDF library is included in the production build and available offline. The Workbox service worker precaches all build assets on first load, so subsequent visits and all app functionality — including PDF export — work without any network connection. The manifest update enables "Add to Home Screen" installation on iOS and Android so the app can be launched like a native app without a browser address bar.
+
+---
+
 ## [2026-02-20] — Risk Score Dashboard & PDF risk summary
 
 **Agent:** Form Agent (with QA pass)

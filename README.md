@@ -52,7 +52,10 @@ src/
 │   └── usePhotos.js     # Photo upload state management
 ├── utils/
 │   ├── riskEngine.js    # Pure scoring engine (0–100 safety score)
+│   ├── generatePdf.js   # jsPDF-based PDF export (bundled, not CDN)
 │   └── storage.js       # localStorage helpers for draft save/load
+├── service-worker.js    # Workbox service worker (precaches all build assets)
+├── serviceWorkerRegistration.js  # Production-only SW registration utility
 ├── styles/
 │   └── variables.css    # CSS custom properties (design tokens)
 ├── App.js               # Root component, section config, layout
@@ -77,7 +80,10 @@ Issues logged by QA that have not yet been fixed. Severity labels: **(H)** High,
 | L-4 | (L) | Header emoji icon is missing `aria-hidden="true"` — may be read aloud unnecessarily by screen readers | 2026-02-19 | Resolved 2026-02-20 |
 | M-1 | (M) | `savePhotos` silently swallows `QuotaExceededError` — no user-visible feedback when a photo fails to save because localStorage is full | 2026-02-18 | Open |
 | L-1 | (L) | Removed user profile field data (`u{n}-age`, etc.) is not cleaned up from `formData.fields` when a user card is deleted — stale data persists in the draft | 2026-02-18 | Open |
-| M-2 | (M) | jsPDF loaded via CDN — PDF export will fail if the auditor opens the app for the first time without an internet connection | 2026-02-19 | Open |
+| M-2 | (M) | jsPDF loaded via CDN — PDF export will fail if the auditor opens the app for the first time without an internet connection | 2026-02-19 | Resolved 2026-02-20 — jsPDF is now bundled via npm; CDN script tags removed |
+| PWA-1 | (L) | No user-facing "new version available" banner — SKIP_WAITING infrastructure is in place in the service worker but not wired to a UI toast or banner | 2026-02-20 | Open |
+| PWA-2 | (L) | App icons are still the default CRA React logo — branded artwork has not yet been created | 2026-02-20 | Open |
+| PWA-3 | (L) | Google Fonts will not render on a true first offline load — the font is only cached after the first online visit; the service worker caches it on subsequent visits | 2026-02-20 | Open |
 | NEW-2 | (L) | `role="button"` section header div has no explicit `aria-label` fallback — accessible name is derived from text content descendants; advisory only | 2026-02-20 | Open |
 | NEW-4 | (L) | "Yes, clear everything" and "Fix first" buttons share a CSS class despite different semantic roles — cosmetic concern | 2026-02-20 | Open |
 
@@ -110,9 +116,12 @@ Issues logged by QA that have not yet been fixed. Severity labels: **(H)** High,
    - ~~Show a visual summary dashboard~~ — live dashboard rendered after all 8 sections with animated score bar, per-section sub-scores, and a prioritised flags list (Critical / High / Medium)
    - Risk score integrated into PDF as a summary block on page 1 (score number, level badge, coloured bar, section sub-scores, and flags)
 
-5. **Offline / PWA Support**
-   - Make the app installable as a Progressive Web App
-   - Full offline support using service workers so auditors can use it in the field without internet
+5. **Offline / PWA Support** ✅ *Implemented 2026-02-20*
+   - ~~Make the app installable as a Progressive Web App~~ — `manifest.json` updated with real app name, description, brand colour (`#cc0000`), correct `start_url` and `scope` for the GitHub Pages subdirectory, and `"purpose": "maskable any"` on the 512×512 icon. The app can be installed via "Add to Home Screen" on iOS and Android.
+   - ~~Full offline support using service workers~~ — a Workbox-powered service worker (`src/service-worker.js`) precaches all JS, CSS, and HTML build assets on first load. All app functionality, including PDF export, works without a network connection after the first visit. SPA navigation fallback serves the cached `index.html` for all navigate requests so client-side routing works offline.
+   - jsPDF is now bundled via npm (`jspdf@2.5.1`, `jspdf-autotable@3.8.2`) — no longer fetched from a CDN at runtime. PDF export works offline.
+   - Google Fonts stylesheets cached with StaleWhileRevalidate; font files cached CacheFirst with a 1-year expiry.
+   - Known limitations: no "new version available" banner yet (PWA-1); app icons are still the default CRA logo (PWA-2); Google Fonts will not render on a true first offline load — only cached after the first online visit (PWA-3).
 
 6. **Multi-Audit Management**
    - Allow saving and managing multiple audits (list of past audits)

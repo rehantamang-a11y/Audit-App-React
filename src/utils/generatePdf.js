@@ -2,7 +2,7 @@
  * generatePdf.js
  *
  * Generates a professionally designed "Findings" PDF report using jsPDF +
- * jsPDF-autoTable (loaded via CDN in public/index.html).
+ * jsPDF-autoTable (bundled as npm packages — jspdf@2.5.1, jspdf-autotable@3.8.2).
  *
  * Design language:
  *   - Brand red (#cc0000) used sparingly as an accent colour
@@ -13,6 +13,8 @@
  *   - Page footer with app name + page numbers on every page
  */
 
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 import { buildPdfData } from './pdfDataBuilder';
 import { computeRiskScore } from './riskEngine';
 
@@ -508,16 +510,8 @@ function drawRiskSummary(doc, risk, y, marginX, contentW, pageH) {
  *
  * @param {Object} formData - from FormContext ({ meta, fields })
  * @param {Object} photos   - from PhotoContext ({ '1': [{id, name, data}], ... })
- * @throws {Error} if jsPDF CDN scripts are not loaded
  */
 export function generatePdf(formData, photos) {
-  if (!window.jspdf) {
-    throw new Error(
-      'PDF library not loaded. Please ensure you have an internet connection and reload the app.'
-    );
-  }
-
-  const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   const pageW    = doc.internal.pageSize.getWidth();
