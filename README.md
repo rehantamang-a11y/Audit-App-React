@@ -1,6 +1,8 @@
 # Bathroom Safety Audit App
 
-A React-based form application for conducting bathroom safety audits. Auditors can inspect and document 8 key areas of bathroom safety, add photos, save drafts, and export reports as PDF.
+A React-based form application for conducting bathroom safety audits. Auditors can inspect and document 8 key areas of bathroom safety, add photos, save drafts, compute a dynamic risk score, export reports as PDF, and submit audit data to a Firebase backend. Works completely offline; syncs to the cloud when connectivity is restored.
+
+**Current phase:** Phase 2 (Backend sync & offline submission) — in progress
 
 ## Getting Started
 
@@ -17,6 +19,46 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 npm run build
 ```
 
+## Environment Variables
+
+The app requires Firebase credentials to enable backend sync. If environment variables are not set, the app functions in offline-only mode with a console warning (sync features disabled).
+
+Create a `.env` file in the project root:
+
+```
+REACT_APP_FIREBASE_API_KEY=<your-firebase-api-key>
+REACT_APP_FIREBASE_PROJECT_ID=<your-firebase-project-id>
+REACT_APP_FIREBASE_AUTH_DOMAIN=<your-firebase-project>.firebaseapp.com
+REACT_APP_FIREBASE_STORAGE_BUCKET=<your-firebase-project>.appspot.com
+REACT_APP_AUDIT_API_URL=https://us-central1-<your-firebase-project>.cloudfunctions.net
+```
+
+**Note:** The `REACT_APP_AUDIT_API_URL` should point to the Cloud Function endpoint deployed via the `eyeagle-backend` repository. See [Backend Setup](#backend-setup) below.
+
+## Backend Setup
+
+This app has two separate repositories:
+
+1. **`Audit app/`** (this repository) — React frontend
+2. **`eyeagle-backend/`** (separate repository, same parent directory) — Firebase Cloud Functions backend
+
+To enable backend sync:
+
+1. Set up the Firebase project and deploy the Cloud Functions:
+   ```bash
+   cd ../eyeagle-backend
+   # Follow BACKEND_SETUP.md for detailed instructions
+   firebase deploy
+   ```
+
+2. Copy the Cloud Function HTTP trigger URL (output by `firebase deploy`) and add it to the `.env` file as `REACT_APP_AUDIT_API_URL`.
+
+3. The frontend will then be able to submit audits to the backend. Submissions are queued offline and synced automatically when connectivity is restored.
+
+For deployment details, see `eyeagle-backend/BACKEND_SETUP.md`.
+
+---
+
 ## Project Structure
 
 ```
@@ -28,7 +70,7 @@ src/
 │   ├── PhotoUpload/     # Photo upload with preview & removal
 │   ├── UserProfile/     # Individual user profile card
 │   ├── Toast/           # Toast notification
-│   ├── ActionBar/       # Save Draft / Export PDF buttons
+│   ├── ActionBar/       # Save Draft / Send Report / Export PDF buttons
 │   ├── RiskDashboard/   # Safety score dashboard (score, sub-scores, flags)
 │   └── fields/          # Reusable form field components
 │       ├── SelectField
@@ -90,6 +132,16 @@ Issues logged by QA that have not yet been fixed. Severity labels: **(H)** High,
 ---
 
 ## Improvements Roadmap
+
+### Phase 2 — Backend Sync & Offline Submission ✅ *Completed 2026-02-24*
+
+**Completed in this phase:**
+
+- **Backend API & Firebase integration** — Cloud Functions endpoint validates and stores audit submissions in Firestore, keyed by authenticated user ID
+- **Offline-first submission** — frontend checks device online status and queues submissions locally if offline
+- **Graceful retry** — pending submissions saved to localStorage with a restore timestamp; users can retry manually or wait for auto-retry when online
+- **Send Report UI** — new "Send Report" button in ActionBar with five states (idle, syncing, success, error, offline) and helpful status messages
+- **Sync status tracking** — form context now tracks sync state and audit ID; shows "Edits made after sync" notice when form is modified after successful submission
 
 ### User Experience (UX) Improvements
 
@@ -175,12 +227,11 @@ Issues logged by QA that have not yet been fixed. Severity labels: **(H)** High,
      - Better performance (fewer re-renders)
      - Easier error handling
 
-6. **Backend Integration**
-   - Connect to a backend API (Node/Express, Firebase, Supabase) to:
-     - Store audits in a database
-     - Upload photos to cloud storage (S3, Cloudinary)
-     - Enable multi-device sync
-   - Add user authentication for auditor accounts
+6. **Backend Integration** ✅ *Implemented 2026-02-24*
+   - ~~Connect to a backend API~~ — Firebase Cloud Functions deployed, audits stored in Firestore
+   - ~~Store audits in a database~~ — every submission saved to Firestore under `/audits/{userId}/{auditId}`
+   - Anonymous user authentication — Firebase Auth handles anonymous auth; ID token included in sync requests
+   - Pending: Photo upload to cloud storage (photos currently stored inline in Firestore documents); multi-device sync (audit data isolated per user account)
 
 7. **Component Library / Design System**
    - Extract the field components into a shared design system

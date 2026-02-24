@@ -5,6 +5,88 @@ Updated by the Docs Agent after every completed task or session.
 
 ---
 
+## [2026-02-24] — Backend sync & offline submission
+
+**Agent:** Implementation Agent (backend setup) + Form Agent (frontend wiring) + QA Agent (review)
+
+**Files changed:**
+
+Frontend (`Audit app/`):
+- `src/firebase.js` (new)
+- `src/services/auditService.js` (new)
+- `src/context/FormContext.js`
+- `src/App.js`
+- `src/components/ActionBar/ActionBar.jsx`
+- `src/components/ActionBar/ActionBar.css`
+
+Backend (separate repo `eyeagle-backend/`):
+- `firebase.json`, `firestore.rules`, `firestore.indexes.json` (new)
+- `functions/index.js` (Cloud Functions entry point)
+- `BACKEND_SETUP.md` (deployment guide)
+
+**What changed:**
+
+**Frontend: Firebase app initialization and authentication**
+
+`src/firebase.js` — Initializes a Firebase app using `REACT_APP_FIREBASE_*` environment variables (API key, project ID, etc.). Exports `initAuth()`: authenticates the user anonymously via Firebase Auth if the environment is configured, or logs a console warning and disables sync features if env vars are missing. Fails gracefully to prevent runtime crashes in offline-first or CI environments.
+
+**Frontend: Report submission service**
+
+`src/services/auditService.js` — Exports `sendReport(meta, fields, riskScore, photos)`: checks device online status via `navigator.onLine`; if offline, rejects immediately. If online, gets the user's Firebase ID token, constructs a POST to `REACT_APP_AUDIT_API_URL/api/submit` with body `{ meta, fields, riskScore, photos }` (serialised as JSON, photos as base64-encoded data URIs); returns `{ auditId, syncedAt }` on success. Handles network errors and backend error responses.
+
+**Frontend: Sync state in form context**
+
+`src/context/FormContext.js` — Added sync-related state and callbacks:
+- `syncStatus` state: `idle | syncing | success | error | offline`
+- `syncedAuditId`: populated after a successful sync
+- `editedAfterSync`: boolean flag, set to true when the form is edited after a successful sync
+- `setSyncStart()`: sets status to `syncing`
+- `setSyncSuccess(auditId, riskScore)`: sets status to `success`, stores `auditId` and `riskScore`, saves pending submission to localStorage (including formData, riskScore, timestamp) so it can be retried later
+- `setSyncError(riskScore)`: sets status to `error`, saves pending submission to localStorage for offline retry
+- `setSyncReset()`: resets sync state to `idle`
+
+When sync fails or the device is offline, the pending submission (formData, riskScore, timestamp) is saved to localStorage under `bathoomAuditPending` so it can be retried when connectivity is restored.
+
+**Frontend: App-level sync handlers**
+
+`src/App.js` — Added `onSendReport` handler: validates form completion using the same checks as PDF export; calls `sendReport()` with current `formData`, `riskScore`, and `photos`. Routes sync status changes (start, success, error) to `FormContext` handlers. Handles two error types: offline errors (user is currently offline, show "No connection" message, enable retry when online), and server errors (backend rejected the submission, show error details, enable retry). Added `onRetry` handler for manual retry of pending offline submissions (same validation, calls `sendReport()` again).
+
+**Frontend: Action bar with sync UI**
+
+`src/components/ActionBar/ActionBar.jsx` — Added "Send Report" button between "Save Draft" and "Export as PDF". Button renders five states:
+- Idle: "Send Report" (clickable)
+- Syncing: spinner + "Sending..." (disabled)
+- Success: "Sent ✓" (disabled, green background)
+- Error: "Send failed — retry" (clickable, red background)
+- Offline: "No connection, disabled" (disabled, greyed out)
+
+Shows a "Retry sending" button below when in error or offline state. Shows an info banner "Edits made after sync — tap Send Report to re-send" when the form is edited after a successful sync.
+
+**Frontend: Sync UI styles**
+
+`src/components/ActionBar/ActionBar.css` — Added styles for `.btn-send-report` (idle state), `.btn-send-error` (red background), `.btn-send-offline` (greyed), `.btn-retry`, `.spinner` (animation), `.sync-info` (info banner), and `.sync-audit-id` (audit ID display in success state).
+
+**Backend: Firebase Cloud Functions**
+
+Created a separate `eyeagle-backend/` repository alongside `Audit app/`. Contains:
+- `functions/index.js`: Cloud Function `submitAudit` listening on `POST /api/submit`. Authenticates the request using the Firebase ID token from the Authorization header. Validates the payload structure. Stores the audit document in Firestore (`/audits/{auditId}`) with timestamp, user ID, and all submitted data. Returns `{ auditId, syncedAt }` on success.
+- `firestore.rules`: Security rules allowing authenticated users to write to `/audits/{userId}/*` paths only.
+- `firestore.indexes.json`: Composite index for querying audits by user and creation timestamp.
+- `firebase.json`: Cloud Functions and Firestore deployment configuration.
+- `BACKEND_SETUP.md`: Step-by-step guide for deploying the backend (gcloud setup, env vars, `firebase deploy`).
+
+**Why:**
+
+Phase 1 audit data was only stored locally on the auditor's device — no syncing to a central database meant field teams could not compare audits across locations, manage audit history, or generate reports. Phase 2 adds backend infrastructure: Cloud Functions validate and persist submissions, Firestore stores audits keyed by user ID, and the frontend provides offline-first submission with graceful retry. The app now works completely offline and syncs data when connectivity is restored. If a submission fails due to network error, the data is saved to localStorage and the user can retry later — no data loss.
+
+**Rollout notes:**
+
+- Environment variables required: `REACT_APP_FIREBASE_API_KEY`, `REACT_APP_FIREBASE_PROJECT_ID`, `REACT_APP_FIREBASE_AUTH_DOMAIN`, `REACT_APP_FIREBASE_STORAGE_BUCKET`, `REACT_APP_AUDIT_API_URL` (the Cloud Function HTTP trigger URL, e.g., `https://us-central1-[project-id].cloudfunctions.net`). If not set, sync is disabled with a console warning.
+- Backend must be deployed before the frontend is released (see `eyeagle-backend/BACKEND_SETUP.md`).
+- Pending submissions are stored in localStorage and survive page reloads — they will be retried automatically when the device comes online or manually via the "Retry" button.
+
+---
+
 ## [2026-02-20] — PWA / Offline Support
 
 **Agent:** Architect Agent (planning) + Implementation Agent (build) + QA Agent (review and approval)

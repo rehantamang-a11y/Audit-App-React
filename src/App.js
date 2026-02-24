@@ -1,11 +1,13 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { generatePdf } from './utils/generatePdf';
+import { sendReport } from './services/auditService';
+import { initAuth } from './firebase';
 import Header from './components/Header/Header';
 import MetaBar from './components/MetaBar/MetaBar';
 import Section from './components/Section/Section';
 import ActionBar from './components/ActionBar/ActionBar';
 import Toast from './components/Toast/Toast';
-import { useFormContext } from './context/FormContext';
+import { useFormContext, getPendingSubmission } from './context/FormContext';
 import { usePhotoContext } from './context/PhotoContext';
 import { computeSectionCompletion } from './data/sectionSchema';
 import { computeRiskScore } from './utils/riskEngine';
@@ -34,11 +36,16 @@ const SECTIONS = [
 ];
 
 export default function App() {
-  const { formData, updateMeta, updateField, getField, handleSaveDraft, resetForm, hasDraft } = useFormContext();
+  const {
+    formData, updateMeta, updateField, getField, handleSaveDraft, resetForm, hasDraft,
+    syncStatus, syncedAuditId, syncError, pendingRetry, editedAfterSync,
+    setSyncStart, setSyncSuccess, setSyncError,
+  } = useFormContext();
   const { photos, addPhotos, removePhoto, getPhotos, photoError, clearPhotoError, resetPhotos } = usePhotoContext();
   const [expandedSections, setExpandedSections] = useState(new Set());
   const [toast, setToast] = useState(hasDraft ? 'Draft restored' : '');
   const [isExporting, setIsExporting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [highlightErrors, setHighlightErrors] = useState(false);
   const [erroredSections, setErroredSections] = useState(new Set());
   const [validationBanner, setValidationBanner] = useState(null);
@@ -55,6 +62,11 @@ export default function App() {
   const completedCount = Object.values(sectionCompletions).filter(c => c.complete).length;
 
   const riskScore = useMemo(() => computeRiskScore(formData.fields), [formData.fields]);
+
+  // Initialize Firebase auth on app mount
+  useEffect(() => {
+    initAuth();
+  }, []);
 
   // Clear error highlighting only once all previously-errored sections are fixed
   useEffect(() => {
@@ -157,6 +169,86 @@ export default function App() {
     setConfirmNewAuditBanner(false);
   };
 
+  const onSendReport = async () => {
+    // Validate (same as PDF export)
+    const incompleteSections = SECTIONS.filter(s => !sectionCompletions[s.number].complete);
+    const missingMeta = !formData.meta.auditor.trim() || !formData.meta.location.trim();
+
+    if (incompleteSections.length > 0 || missingMeta) {
+      setErroredSections(new Set(incompleteSections.map(s => s.number)));
+      setValidationBanner({ incompleteSections, missingMeta });
+      return;
+    }
+
+    if (isSyncing) return;
+
+    setSyncStart();
+    setIsSyncing(true);
+
+    try {
+      // Prepare photos as { sectionId: [photos] }
+      const photosToSend = Object.fromEntries(
+        SECTIONS.map(s => [String(s.number), getPhotos(String(s.number)) || []])
+      );
+
+      const result = await sendReport({
+        meta: formData.meta,
+        fields: formData.fields,
+        riskScore: riskScore.score,
+        photos: photosToSend,
+      });
+
+      setSyncSuccess(result.auditId);
+      setToast(`Report sent! ID: ${result.auditId}`);
+    } catch (err) {
+      const isOffline = err.message === 'offline';
+      setSyncError(err.message, isOffline, riskScore);
+      const userMessage = isOffline
+        ? 'No connection — tap Retry when you\'re back online'
+        : err.message || 'Failed to send report. Please try again.';
+      setToast(userMessage);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const onRetry = async () => {
+    if (isSyncing) return;
+
+    setSyncStart();
+    setIsSyncing(true);
+
+    try {
+      const pending = getPendingSubmission();
+      if (!pending) {
+        throw new Error('No pending submission found.');
+      }
+
+      const photosToSend = Object.fromEntries(
+        SECTIONS.map(s => [String(s.number), getPhotos(String(s.number)) || []])
+      );
+
+      const result = await sendReport({
+        meta: pending.formData.meta,
+        fields: pending.formData.fields,
+        riskScore: pending.riskScore || riskScore.score,
+        photos: photosToSend,
+      });
+
+      setSyncSuccess(result.auditId);
+      setToast(`Report sent! ID: ${result.auditId}`);
+    } catch (err) {
+      const isOffline = err.message === 'offline';
+      setSyncError(err.message, isOffline);
+      const userMessage = isOffline
+        ? 'No connection — tap Retry when you\'re back online'
+        : err.message || 'Failed to send report. Please try again.';
+      setToast(userMessage);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="container">
       <Header completedCount={completedCount} totalSections={SECTIONS.length} />
@@ -200,6 +292,14 @@ export default function App() {
         confirmNewAuditBanner={confirmNewAuditBanner}
         onConfirmNewAudit={onConfirmNewAudit}
         onCancelNewAudit={onCancelNewAudit}
+        onSendReport={onSendReport}
+        onRetry={onRetry}
+        isSyncing={isSyncing}
+        syncStatus={syncStatus}
+        syncedAuditId={syncedAuditId}
+        syncError={syncError}
+        pendingRetry={pendingRetry}
+        editedAfterSync={editedAfterSync}
       />
       <Toast message={toast} onDone={() => setToast('')} />
     </div>
