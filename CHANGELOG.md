@@ -5,6 +5,147 @@ Updated by the Docs Agent after every completed task or session.
 
 ---
 
+## [2026-02-24] — Email + password login
+
+**Agent:** Docs Agent
+
+**Files changed:**
+
+Frontend (`Audit app/`):
+- `src/components/LoginScreen/LoginScreen.jsx` (new)
+- `src/components/LoginScreen/LoginScreen.css` (new)
+- `src/firebase.js` — replaced anonymous auth with email/password auth
+- `src/App.js` — added auth state listener and conditional rendering
+- `src/components/Header/Header.jsx` — added sign-out button and confirmation dialog
+- `src/components/Header/Header.css` — sign-out button styling
+
+Backend (`eyeagle-backend/`):
+- `firestore.rules` — tightened `allow create` rule to require authenticated users
+
+**What changed:**
+
+**Frontend: New login screen component**
+
+`src/components/LoginScreen/LoginScreen.jsx` — Renders a branded login form before the audit flow. Email and password are required fields. Client-side validation prevents empty submissions. Error handling distinguishes network errors (timeout, connection refused) from credential errors (wrong email or password). Form uses a warm, brand-consistent design. Submit button meets 48px touch target for mobile accessibility.
+
+`src/components/LoginScreen/LoginScreen.css` — Mobile-first responsive styles for the login screen. Centered form card with padding. Email and password input fields are full-width. Sign-in button styled with the brand red background and white text. Error message rendered in red text. Form maintains the warm, welcoming aesthetic consistent with the rest of the app.
+
+**Frontend: Firebase authentication update**
+
+`src/firebase.js` — Switched from anonymous authentication to email/password authentication. Removed `initAuth()` that silently authenticated as anonymous. Added `signIn(email, password)` function that calls Firebase `signInWithEmailAndPassword()` and returns the user object on success. Added `signOut()` function that calls Firebase `signOut()`. Added `subscribeToAuthState(callback)` function that attaches a listener to `onAuthStateChanged()` and calls the callback whenever auth state changes (user logged in, logged out, or initial check completes). All functions gracefully handle missing Firebase config by returning error messages instead of crashing.
+
+**Frontend: App-level auth state management**
+
+`src/App.js` — Added `useEffect` that calls `subscribeToAuthState` on mount. Sets `authUser` state to null initially, then updates to the user object when auth state resolves. Sets `isCheckingAuth` to true while waiting for the initial auth check, then false once it completes. Conditional rendering now shows: loading spinner while `isCheckingAuth` is true, LoginScreen if `!authUser`, or the audit form if `authUser`. This ensures the login screen appears before any audit data can be accessed.
+
+**Frontend: Header sign-out button**
+
+`src/components/Header/Header.jsx` — Added a sign-out button in the top-right corner, visible only when `authUser` is not null. Button triggers a confirmation dialog asking "Are you sure you want to sign out?" with "Cancel" and "Sign out" options. On confirmation, calls `onSignOut` handler. Confirmation dialog prevents accidental sign-outs on mobile.
+
+`src/components/Header/Header.css` — Sign-out button styled with 48px minimum height for mobile touch target accessibility. Text colour uses the muted secondary text colour. Button includes minimal padding and border styling to fit the header without overwhelming the progress bar.
+
+**Frontend: Data privacy on sign-out**
+
+`src/App.js` — When the user signs out, the `onSignOut` handler clears the form data and photos before signing out. This prevents one employee seeing another employee's draft audit or photos on the next login, ensuring data privacy between users.
+
+**Backend: Tightened Firestore rules**
+
+`firestore.rules` — Updated the `allow create` rule on `/audits/{userId}/*` to require `request.auth.token.email != null`. This blocks anonymous users (who have no email field) from writing to the database. Previously, anyone with the app URL could submit data. Now only users authenticated with email/password can submit audits.
+
+**Why:**
+
+Anonymous auth meant anyone with the app URL could submit arbitrary data to the Firestore database. This posed both a security risk and a user experience problem: field employees could accidentally overwrite each other's drafts, and there was no audit trail of who submitted which data. Email + password login restricts access to accounts created by Rey. Form and photo data is cleared on sign-out to prevent one employee seeing another employee's draft in the next session. Firestore security rules enforce the authentication requirement at the database level.
+
+**Rollout notes:**
+
+- Rey must create user accounts in Firebase Authentication before employees can log in (Firebase Console > Authentication > Users > Add user).
+- Existing app installations with anonymous auth will have their data blocked from new submissions. A data migration script may be needed to preserve existing anonymous submissions (not included in this release).
+- Sign-out confirmation dialog uses native browser confirm to avoid layout shifts on mobile. Future release may replace with inline confirmation banner to match the existing pattern used elsewhere in the app.
+
+---
+
+## [2026-02-24] — Backend sync & offline submission
+
+**Agent:** Implementation Agent (backend setup) + Form Agent (frontend wiring) + QA Agent (review)
+
+**Files changed:**
+
+Frontend (`Audit app/`):
+- `src/firebase.js` (new)
+- `src/services/auditService.js` (new)
+- `src/context/FormContext.js`
+- `src/App.js`
+- `src/components/ActionBar/ActionBar.jsx`
+- `src/components/ActionBar/ActionBar.css`
+
+Backend (separate repo `eyeagle-backend/`):
+- `firebase.json`, `firestore.rules`, `firestore.indexes.json` (new)
+- `functions/index.js` (Cloud Functions entry point)
+- `BACKEND_SETUP.md` (deployment guide)
+
+**What changed:**
+
+**Frontend: Firebase app initialization and authentication**
+
+`src/firebase.js` — Initializes a Firebase app using `REACT_APP_FIREBASE_*` environment variables (API key, project ID, etc.). Exports `initAuth()`: authenticates the user anonymously via Firebase Auth if the environment is configured, or logs a console warning and disables sync features if env vars are missing. Fails gracefully to prevent runtime crashes in offline-first or CI environments.
+
+**Frontend: Report submission service**
+
+`src/services/auditService.js` — Exports `sendReport(meta, fields, riskScore, photos)`: checks device online status via `navigator.onLine`; if offline, rejects immediately. If online, gets the user's Firebase ID token, constructs a POST to `REACT_APP_AUDIT_API_URL/api/submit` with body `{ meta, fields, riskScore, photos }` (serialised as JSON, photos as base64-encoded data URIs); returns `{ auditId, syncedAt }` on success. Handles network errors and backend error responses.
+
+**Frontend: Sync state in form context**
+
+`src/context/FormContext.js` — Added sync-related state and callbacks:
+- `syncStatus` state: `idle | syncing | success | error | offline`
+- `syncedAuditId`: populated after a successful sync
+- `editedAfterSync`: boolean flag, set to true when the form is edited after a successful sync
+- `setSyncStart()`: sets status to `syncing`
+- `setSyncSuccess(auditId, riskScore)`: sets status to `success`, stores `auditId` and `riskScore`, saves pending submission to localStorage (including formData, riskScore, timestamp) so it can be retried later
+- `setSyncError(riskScore)`: sets status to `error`, saves pending submission to localStorage for offline retry
+- `setSyncReset()`: resets sync state to `idle`
+
+When sync fails or the device is offline, the pending submission (formData, riskScore, timestamp) is saved to localStorage under `bathoomAuditPending` so it can be retried when connectivity is restored.
+
+**Frontend: App-level sync handlers**
+
+`src/App.js` — Added `onSendReport` handler: validates form completion using the same checks as PDF export; calls `sendReport()` with current `formData`, `riskScore`, and `photos`. Routes sync status changes (start, success, error) to `FormContext` handlers. Handles two error types: offline errors (user is currently offline, show "No connection" message, enable retry when online), and server errors (backend rejected the submission, show error details, enable retry). Added `onRetry` handler for manual retry of pending offline submissions (same validation, calls `sendReport()` again).
+
+**Frontend: Action bar with sync UI**
+
+`src/components/ActionBar/ActionBar.jsx` — Added "Send Report" button between "Save Draft" and "Export as PDF". Button renders five states:
+- Idle: "Send Report" (clickable)
+- Syncing: spinner + "Sending..." (disabled)
+- Success: "Sent ✓" (disabled, green background)
+- Error: "Send failed — retry" (clickable, red background)
+- Offline: "No connection, disabled" (disabled, greyed out)
+
+Shows a "Retry sending" button below when in error or offline state. Shows an info banner "Edits made after sync — tap Send Report to re-send" when the form is edited after a successful sync.
+
+**Frontend: Sync UI styles**
+
+`src/components/ActionBar/ActionBar.css` — Added styles for `.btn-send-report` (idle state), `.btn-send-error` (red background), `.btn-send-offline` (greyed), `.btn-retry`, `.spinner` (animation), `.sync-info` (info banner), and `.sync-audit-id` (audit ID display in success state).
+
+**Backend: Firebase Cloud Functions**
+
+Created a separate `eyeagle-backend/` repository alongside `Audit app/`. Contains:
+- `functions/index.js`: Cloud Function `submitAudit` listening on `POST /api/submit`. Authenticates the request using the Firebase ID token from the Authorization header. Validates the payload structure. Stores the audit document in Firestore (`/audits/{auditId}`) with timestamp, user ID, and all submitted data. Returns `{ auditId, syncedAt }` on success.
+- `firestore.rules`: Security rules allowing authenticated users to write to `/audits/{userId}/*` paths only.
+- `firestore.indexes.json`: Composite index for querying audits by user and creation timestamp.
+- `firebase.json`: Cloud Functions and Firestore deployment configuration.
+- `BACKEND_SETUP.md`: Step-by-step guide for deploying the backend (gcloud setup, env vars, `firebase deploy`).
+
+**Why:**
+
+Phase 1 audit data was only stored locally on the auditor's device — no syncing to a central database meant field teams could not compare audits across locations, manage audit history, or generate reports. Phase 2 adds backend infrastructure: Cloud Functions validate and persist submissions, Firestore stores audits keyed by user ID, and the frontend provides offline-first submission with graceful retry. The app now works completely offline and syncs data when connectivity is restored. If a submission fails due to network error, the data is saved to localStorage and the user can retry later — no data loss.
+
+**Rollout notes:**
+
+- Environment variables required: `REACT_APP_FIREBASE_API_KEY`, `REACT_APP_FIREBASE_PROJECT_ID`, `REACT_APP_FIREBASE_AUTH_DOMAIN`, `REACT_APP_FIREBASE_STORAGE_BUCKET`, `REACT_APP_AUDIT_API_URL` (the Cloud Function HTTP trigger URL, e.g., `https://us-central1-[project-id].cloudfunctions.net`). If not set, sync is disabled with a console warning.
+- Backend must be deployed before the frontend is released (see `eyeagle-backend/BACKEND_SETUP.md`).
+- Pending submissions are stored in localStorage and survive page reloads — they will be retried automatically when the device comes online or manually via the "Retry" button.
+
+---
+
 ## [2026-02-20] — PWA / Offline Support
 
 **Agent:** Architect Agent (planning) + Implementation Agent (build) + QA Agent (review and approval)

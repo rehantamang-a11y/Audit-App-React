@@ -10,3 +10,14 @@
   flex-direction: column;
   gap: 10px;
 }
+
+.auth-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--bg);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
