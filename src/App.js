@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { generatePdf } from './utils/generatePdf';
 import { sendReport } from './services/auditService';
-import { initAuth } from './firebase';
+import { subscribeToAuthState, signOut } from './firebase';
+import LoginScreen from './components/LoginScreen/LoginScreen';
 import Header from './components/Header/Header';
 import MetaBar from './components/MetaBar/MetaBar';
 import Section from './components/Section/Section';
@@ -50,6 +51,8 @@ export default function App() {
   const [erroredSections, setErroredSections] = useState(new Set());
   const [validationBanner, setValidationBanner] = useState(null);
   const [confirmNewAuditBanner, setConfirmNewAuditBanner] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const sectionCompletions = useMemo(() => {
     const map = {};
@@ -63,9 +66,13 @@ export default function App() {
 
   const riskScore = useMemo(() => computeRiskScore(formData.fields), [formData.fields]);
 
-  // Initialize Firebase auth on app mount
+  // Subscribe to Firebase auth state
   useEffect(() => {
-    initAuth();
+    const unsubscribe = subscribeToAuthState((user) => {
+      setCurrentUser(user);
+      setAuthLoading(false);
+    });
+    return unsubscribe;
   }, []);
 
   // Clear error highlighting only once all previously-errored sections are fixed
@@ -249,9 +256,17 @@ export default function App() {
     }
   };
 
+  if (authLoading) return <div className="auth-loading">Loading…</div>;
+  if (!currentUser) return <LoginScreen />;
+
   return (
     <div className="container">
-      <Header completedCount={completedCount} totalSections={SECTIONS.length} />
+      <Header
+        completedCount={completedCount}
+        totalSections={SECTIONS.length}
+        currentUser={currentUser}
+        onSignOut={async () => { resetForm(); resetPhotos(); await signOut(); }}
+      />
       <MetaBar meta={formData.meta} onUpdate={updateMeta} />
 
       <div className="content">

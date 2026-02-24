@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
@@ -11,11 +11,10 @@ const firebaseConfig = {
 };
 
 const configMissing = !process.env.REACT_APP_FIREBASE_API_KEY;
-
 let app, auth;
 
 if (configMissing) {
-  console.warn('Firebase config missing — sync features disabled. Add .env vars to enable.');
+  console.warn('Firebase config missing — auth and sync features disabled.');
   auth = null;
 } else {
   app = initializeApp(firebaseConfig);
@@ -24,11 +23,20 @@ if (configMissing) {
 
 export { auth };
 
-export async function initAuth() {
-  if (!auth) return; // No-op if config missing
-  try {
-    await signInAnonymously(auth);
-  } catch (err) {
-    console.error('Firebase anonymous auth failed:', err);
+export async function signIn(email, password) {
+  if (!auth) throw new Error('Firebase not configured');
+  return signInWithEmailAndPassword(auth, email, password);
+}
+
+export async function signOut() {
+  if (!auth) return;
+  return firebaseSignOut(auth);
+}
+
+export function subscribeToAuthState(callback) {
+  if (!auth) {
+    callback(null);
+    return () => {};
   }
+  return onAuthStateChanged(auth, callback);
 }
