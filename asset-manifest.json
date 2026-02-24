@@ -1,20 +1,20 @@
 {
   "files": {
-    "main.css": "/Audit-App-React/static/css/main.181548ec.css",
-    "main.js": "/Audit-App-React/static/js/main.9439bf9c.js",
+    "main.css": "/Audit-App-React/static/css/main.ae2a728c.css",
+    "main.js": "/Audit-App-React/static/js/main.a84649cd.js",
     "static/js/239.34cf493c.chunk.js": "/Audit-App-React/static/js/239.34cf493c.chunk.js",
     "static/js/213.99c1c059.chunk.js": "/Audit-App-React/static/js/213.99c1c059.chunk.js",
     "static/js/455.865ebd71.chunk.js": "/Audit-App-React/static/js/455.865ebd71.chunk.js",
     "service-worker.js": "/Audit-App-React/service-worker.js",
     "index.html": "/Audit-App-React/index.html",
-    "main.181548ec.css.map": "/Audit-App-React/static/css/main.181548ec.css.map",
-    "main.9439bf9c.js.map": "/Audit-App-React/static/js/main.9439bf9c.js.map",
+    "main.ae2a728c.css.map": "/Audit-App-React/static/css/main.ae2a728c.css.map",
+    "main.a84649cd.js.map": "/Audit-App-React/static/js/main.a84649cd.js.map",
     "239.34cf493c.chunk.js.map": "/Audit-App-React/static/js/239.34cf493c.chunk.js.map",
     "213.99c1c059.chunk.js.map": "/Audit-App-React/static/js/213.99c1c059.chunk.js.map",
     "455.865ebd71.chunk.js.map": "/Audit-App-React/static/js/455.865ebd71.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.181548ec.css",
-    "static/js/main.9439bf9c.js"
+    "static/css/main.ae2a728c.css",
+    "static/js/main.a84649cd.js"
   ]
 }
